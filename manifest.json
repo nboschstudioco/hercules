@@ -3,16 +3,10 @@
   "name": "Gmail Auto Follow-Up",
   "version": "1.0.0",
   "description": "Automate Gmail follow-up sequences with OAuth authentication",
-  "permissions": [
-    "identity",
-    "storage",
-    "activeTab"
-  ],
-  "host_permissions": [
-    "https://www.googleapis.com/*"
-  ],
+  "permissions": ["identity", "storage", "activeTab"],
+  "host_permissions": ["https://www.googleapis.com/*"],
   "oauth2": {
-    "client_id": "YOUR_OAUTH_CLIENT_ID_HERE.apps.googleusercontent.com",
+    "client_id": "1078184620133-thr1d62t2a55t6dvrtvmruolb6rn9gh0.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/gmail.readonly",
       "https://www.googleapis.com/auth/gmail.send",

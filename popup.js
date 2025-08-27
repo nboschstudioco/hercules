@@ -21,14 +21,20 @@ class GmailAuthPopup {
     }
 
     async init() {
-        // Show loading state initially
-        this.showState('loading');
+        // Show signin state initially (safer default)
+        this.showState('signin');
         
-        // Check if user is already authenticated
-        await this.checkAuthStatus();
-        
-        // Set up event listeners
+        // Set up event listeners first
         this.setupEventListeners();
+        
+        // Check if user is already authenticated (with loading state)
+        this.showState('loading');
+        try {
+            await this.checkAuthStatus();
+        } catch (error) {
+            console.error('Auth check failed:', error);
+            this.showState('signin'); // Fallback to signin on any error
+        }
     }
 
     setupEventListeners() {
@@ -80,7 +86,8 @@ class GmailAuthPopup {
             this.showState('signin');
         } catch (error) {
             console.error('Error checking auth status:', error);
-            this.showError('Failed to check authentication status');
+            // Always fallback to signin state on error instead of showing error
+            this.showState('signin');
         }
     }
 
@@ -241,14 +248,19 @@ class GmailAuthPopup {
 }
 
 // Initialize popup when DOM is loaded
+let popupInstance = null;
+
 document.addEventListener('DOMContentLoaded', () => {
-    new GmailAuthPopup();
+    popupInstance = new GmailAuthPopup();
 });
 
 // Handle popup visibility changes
 document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-        // Popup became visible, refresh auth status
-        const popup = new GmailAuthPopup();
+    if (!document.hidden && popupInstance) {
+        // Popup became visible, refresh auth status without creating new instance
+        popupInstance.checkAuthStatus().catch(error => {
+            console.error('Visibility change auth check failed:', error);
+            popupInstance.showState('signin');
+        });
     }
 });
