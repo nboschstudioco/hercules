@@ -21,19 +21,19 @@ class GmailAuthPopup {
     }
 
     async init() {
-        // Show signin state initially (safer default)
-        this.showState('signin');
+        // Always start with loading state
+        this.showState('loading');
         
         // Set up event listeners first
         this.setupEventListeners();
         
-        // Check if user is already authenticated (with loading state)
-        this.showState('loading');
+        // Check authentication status and transition to appropriate state
         try {
             await this.checkAuthStatus();
         } catch (error) {
             console.error('Auth check failed:', error);
-            this.showState('signin'); // Fallback to signin on any error
+            // On any error, show signin state
+            this.showState('signin');
         }
     }
 
@@ -82,11 +82,11 @@ class GmailAuthPopup {
                 }
             }
 
-            // No valid authentication found
+            // No valid authentication found - transition to signin
             this.showState('signin');
         } catch (error) {
             console.error('Error checking auth status:', error);
-            // Always fallback to signin state on error instead of showing error
+            // On error, transition to signin state
             this.showState('signin');
         }
     }
