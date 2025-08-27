@@ -44,14 +44,21 @@ class GmailAuthPopup {
     }
 
     showState(state) {
-        // Hide all states
-        Object.values(this.elements).forEach(element => {
-            if (element && element.classList) {
-                element.classList.add('hidden');
+        // Hide all state containers only (not individual elements inside them)
+        const stateContainers = [
+            this.elements.loading,
+            this.elements.signin, 
+            this.elements.authenticated,
+            this.elements.error
+        ];
+        
+        stateContainers.forEach(container => {
+            if (container && container.classList) {
+                container.classList.add('hidden');
             }
         });
 
-        // Show requested state
+        // Show requested state container
         switch (state) {
             case 'loading':
                 this.elements.loading.classList.remove('hidden');
