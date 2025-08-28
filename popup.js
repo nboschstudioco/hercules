@@ -14,7 +14,15 @@ class GmailAuthPopup {
             signoutBtn: document.getElementById('signout-btn'),
             retryBtn: document.getElementById('retry-btn'),
             userEmail: document.getElementById('user-email'),
-            errorMessage: document.getElementById('error-message')
+            errorMessage: document.getElementById('error-message'),
+            // Email section elements
+            refreshEmailsBtn: document.getElementById('refresh-emails-btn'),
+            emailsLoading: document.getElementById('emails-loading'),
+            emailsList: document.getElementById('emails-list'),
+            emailsEmpty: document.getElementById('emails-empty'),
+            emailsError: document.getElementById('emails-error'),
+            emailsErrorMessage: document.getElementById('emails-error-message'),
+            retryEmailsBtn: document.getElementById('retry-emails-btn')
         };
         
         this.init();
@@ -41,6 +49,8 @@ class GmailAuthPopup {
         this.elements.signinBtn.addEventListener('click', () => this.handleSignIn());
         this.elements.signoutBtn.addEventListener('click', () => this.handleSignOut());
         this.elements.retryBtn.addEventListener('click', () => this.handleRetry());
+        this.elements.refreshEmailsBtn.addEventListener('click', () => this.loadSentEmails());
+        this.elements.retryEmailsBtn.addEventListener('click', () => this.loadSentEmails());
     }
 
     showState(state) {
@@ -85,6 +95,8 @@ class GmailAuthPopup {
                 if (result.tokenExpiry && Date.now() < result.tokenExpiry) {
                     this.elements.userEmail.textContent = result.userEmail;
                     this.showState('authenticated');
+                    // Load sent emails if already authenticated
+                    await this.loadSentEmails();
                     return;
                 }
             }
@@ -118,6 +130,9 @@ class GmailAuthPopup {
                     // Update UI
                     this.elements.userEmail.textContent = userInfo.email;
                     this.showState('authenticated');
+                    
+                    // Load sent emails after successful authentication
+                    await this.loadSentEmails();
                 } else {
                     throw new Error('Failed to retrieve user information');
                 }
@@ -251,6 +266,259 @@ class GmailAuthPopup {
         }
         
         return 'Authentication failed. Please try again or check your internet connection.';
+    }
+
+    async loadSentEmails() {
+        try {
+            // Show loading state
+            this.showEmailsState('loading');
+            
+            // Get the stored auth token
+            const result = await chrome.storage.local.get(['authToken']);
+            if (!result.authToken) {
+                throw new Error('No authentication token found');
+            }
+            
+            // Fetch sent emails from Gmail API
+            const messagesList = await this.fetchSentEmailsList(result.authToken);
+            
+            if (!messagesList || !messagesList.messages || messagesList.messages.length === 0) {
+                this.showEmailsState('empty');
+                return;
+            }
+            
+            // Fetch details for each email (limit to first 20)
+            const emailsToProcess = messagesList.messages.slice(0, 20);
+            const emailDetails = await this.fetchEmailsDetails(result.authToken, emailsToProcess);
+            
+            if (emailDetails.length === 0) {
+                this.showEmailsState('empty');
+                return;
+            }
+            
+            // Display emails
+            this.displayEmails(emailDetails);
+            this.showEmailsState('list');
+            
+        } catch (error) {
+            console.error('Error loading sent emails:', error);
+            this.showEmailsError(this.getEmailErrorMessage(error));
+        }
+    }
+    
+    async fetchSentEmailsList(token) {
+        const response = await fetch(
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages?q=in:sent&maxResults=20',
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        
+        if (!response.ok) {
+            throw new Error(`Failed to fetch emails list: ${response.status}`);
+        }
+        
+        return await response.json();
+    }
+    
+    async fetchEmailsDetails(token, messages) {
+        const emailPromises = messages.map(message => 
+            this.fetchEmailDetails(token, message.id)
+        );
+        
+        const results = await Promise.allSettled(emailPromises);
+        
+        // Filter successful results and extract email data
+        return results
+            .filter(result => result.status === 'fulfilled' && result.value)
+            .map(result => result.value)
+            .filter(email => email); // Remove any null/undefined emails
+    }
+    
+    async fetchEmailDetails(token, messageId) {
+        try {
+            const response = await fetch(
+                `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            
+            if (!response.ok) {
+                console.error(`Failed to fetch message ${messageId}: ${response.status}`);
+                return null;
+            }
+            
+            const messageData = await response.json();
+            return this.parseEmailData(messageData);
+        } catch (error) {
+            console.error(`Error fetching email ${messageId}:`, error);
+            return null;
+        }
+    }
+    
+    parseEmailData(messageData) {
+        try {
+            const headers = messageData.payload.headers;
+            const subject = this.getHeaderValue(headers, 'Subject') || '(No Subject)';
+            const to = this.getHeaderValue(headers, 'To') || '';
+            const date = this.getHeaderValue(headers, 'Date') || '';
+            
+            return {
+                id: messageData.id,
+                threadId: messageData.threadId,
+                subject: subject,
+                to: to,
+                date: this.formatDate(date),
+                rawDate: date
+            };
+        } catch (error) {
+            console.error('Error parsing email data:', error);
+            return null;
+        }
+    }
+    
+    getHeaderValue(headers, name) {
+        const header = headers.find(h => h.name.toLowerCase() === name.toLowerCase());
+        return header ? header.value : null;
+    }
+    
+    formatDate(dateString) {
+        try {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffTime = now - date;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) {
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else if (diffDays === 1) {
+                return 'Yesterday';
+            } else if (diffDays < 7) {
+                return `${diffDays} days ago`;
+            } else {
+                return date.toLocaleDateString();
+            }
+        } catch (error) {
+            return dateString;
+        }
+    }
+    
+    displayEmails(emails) {
+        const emailsList = this.elements.emailsList;
+        emailsList.innerHTML = '';
+        
+        emails.forEach(email => {
+            const emailItem = this.createEmailItem(email);
+            emailsList.appendChild(emailItem);
+        });
+    }
+    
+    createEmailItem(email) {
+        const emailItem = document.createElement('div');
+        emailItem.className = 'email-item';
+        emailItem.dataset.emailId = email.id;
+        
+        emailItem.innerHTML = `
+            <input type="checkbox" class="email-checkbox" data-email-id="${email.id}">
+            <div class="email-content">
+                <div class="email-subject">${this.escapeHtml(email.subject)}</div>
+                <div class="email-to">To: ${this.escapeHtml(email.to)}</div>
+                <div class="email-date">${email.date}</div>
+            </div>
+        `;
+        
+        // Add click handler for selection
+        emailItem.addEventListener('click', (e) => {
+            if (e.target.type !== 'checkbox') {
+                const checkbox = emailItem.querySelector('.email-checkbox');
+                checkbox.checked = !checkbox.checked;
+            }
+            this.updateEmailItemSelection(emailItem);
+        });
+        
+        // Add checkbox change handler
+        const checkbox = emailItem.querySelector('.email-checkbox');
+        checkbox.addEventListener('change', () => {
+            this.updateEmailItemSelection(emailItem);
+        });
+        
+        return emailItem;
+    }
+    
+    updateEmailItemSelection(emailItem) {
+        const checkbox = emailItem.querySelector('.email-checkbox');
+        if (checkbox.checked) {
+            emailItem.classList.add('selected');
+        } else {
+            emailItem.classList.remove('selected');
+        }
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    showEmailsState(state) {
+        // Hide all email states
+        const emailStates = [
+            this.elements.emailsLoading,
+            this.elements.emailsList,
+            this.elements.emailsEmpty,
+            this.elements.emailsError
+        ];
+        
+        emailStates.forEach(element => {
+            if (element) element.classList.add('hidden');
+        });
+        
+        // Show requested state
+        switch (state) {
+            case 'loading':
+                this.elements.emailsLoading.classList.remove('hidden');
+                break;
+            case 'list':
+                this.elements.emailsList.classList.remove('hidden');
+                break;
+            case 'empty':
+                this.elements.emailsEmpty.classList.remove('hidden');
+                break;
+            case 'error':
+                this.elements.emailsError.classList.remove('hidden');
+                break;
+        }
+    }
+    
+    showEmailsError(message) {
+        this.elements.emailsErrorMessage.textContent = message;
+        this.showEmailsState('error');
+    }
+    
+    getEmailErrorMessage(error) {
+        if (error.message) {
+            const message = error.message.toLowerCase();
+            
+            if (message.includes('403') || message.includes('unauthorized')) {
+                return 'Permission denied. Please sign out and sign in again.';
+            } else if (message.includes('404')) {
+                return 'Gmail API not accessible. Please check your connection.';
+            } else if (message.includes('network') || message.includes('fetch')) {
+                return 'Network error. Please check your internet connection.';
+            } else if (message.includes('token')) {
+                return 'Authentication expired. Please sign in again.';
+            }
+        }
+        
+        return 'Failed to load emails. Please try again.';
     }
 }
 
