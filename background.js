@@ -41,6 +41,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('Background received message:', request);
     
     switch (request.action) {
+        case "openSidePanel":
+            // Now open the side panel (no arguments needed for default panel)
+            chrome.sidePanel.open();
+            break;
+            
         case 'refreshToken':
             handleTokenRefresh(request, sendResponse);
             return true; // Keep message channel open for async response
