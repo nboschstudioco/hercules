@@ -41,9 +41,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('Background received message:', request);
     
     switch (request.action) {
-        case "openSidePanel":
-            // Now open the side panel (no arguments needed for default panel)
-            chrome.sidePanel.open();
+        case 'openSidePanel':
+            // Get the current window ID
+            chrome.windows.getCurrent((window) => {
+                chrome.sidePanel.open({ windowId: window.id });
+            });
             break;
             
         case 'refreshToken':
