@@ -194,15 +194,15 @@ body {
 }
 
 .status-ok {
-    background-color: var(--color-amber);
+    background-color: #137333;
 }
 
 .status-error {
-    background-color: var(--color-amaranth-red);
+    background-color: #ea4335;
 }
 
 .status-warning {
-    background-color: var(--color-amber);
+    background-color: #fbbc05;
 }
 
 .expand-btn {
