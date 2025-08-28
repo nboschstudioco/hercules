@@ -3,7 +3,7 @@
   "name": "Gmail Auto Follow-Up",
   "version": "1.0.0",
   "description": "Automate Gmail follow-up sequences with OAuth authentication",
-  "permissions": ["identity", "storage", "activeTab", "sidePanel"],
+  "permissions": ["identity", "storage", "activeTab", "sidePanel", "alarms"],
   "host_permissions": ["https://www.googleapis.com/*"],
   "oauth2": {
     "client_id": "1078184620133-thr1d62t2a55t6dvrtvmruolb6rn9gh0.apps.googleusercontent.com",
@@ -15,7 +15,8 @@
     ]
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "side_panel": {
     "default_path": "sidepanel.html"
