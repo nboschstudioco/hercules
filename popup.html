@@ -7,279 +7,63 @@
     <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <svg class="logo" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="#D2222D" stroke-width="2" fill="none"/>
-                <polyline points="22,6 12,13 2,6" stroke="#D2222D" stroke-width="2" fill="none"/>
-            </svg>
-            <h1>Gmail Auto Follow-Up</h1>
-            <button id="settings-btn" class="settings-btn" aria-label="Sequence Settings">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="3" stroke="#D2222D" stroke-width="2"/>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="#D2222D" stroke-width="2"/>
+    <div class="popup-container">
+        <div class="popup-content">
+            <div class="logo-section">
+                <svg class="logo" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="#D2222D" stroke-width="2" fill="none"/>
+                    <polyline points="22,6 12,13 2,6" stroke="#D2222D" stroke-width="2" fill="none"/>
                 </svg>
+                <h1>Gmail Auto Follow-Up</h1>
+            </div>
+            
+            <div class="description">
+                <p>Automate your Gmail follow-up sequences with OAuth authentication and smart scheduling.</p>
+            </div>
+            
+            <button id="open-sidepanel-btn" class="open-sidepanel-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <line x1="9" y1="9" x2="15" y2="9" stroke="currentColor" stroke-width="2"/>
+                    <line x1="9" y1="12" x2="15" y2="12" stroke="currentColor" stroke-width="2"/>
+                    <line x1="9" y1="15" x2="15" y2="15" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                Open Side Panel
             </button>
-        </div>
-        
-        <!-- Loading state -->
-        <div id="loading" class="loading hidden">
-            <div class="spinner"></div>
-            <p>Checking authentication...</p>
-        </div>
-        
-        <!-- Sign-in state -->
-        <div id="signin" class="signin-container">
-            <div class="signin-content">
-                <h2>Welcome!</h2>
-                <p>Sign in with your Google account to start automating your Gmail follow-ups.</p>
-                <button id="signin-btn" class="signin-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                    </svg>
-                    Sign in with Google
-                </button>
-            </div>
-        </div>
-        
-        <!-- Authenticated state -->
-        <div id="authenticated" class="authenticated-container hidden">
-            <!-- Compact authentication row -->
-            <div class="user-status-row">
-                <div class="avatar-compact">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="10" stroke="#D2222D" stroke-width="2" fill="#FFE6E6"/>
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#D2222D"/>
-                        <path d="M6 18.5c0-2.5 2.69-4.5 6-4.5s6 2 6 4.5" stroke="#D2222D" stroke-width="2" fill="none"/>
-                    </svg>
-                </div>
-                <span id="user-email" class="user-email-compact"></span>
-                <span id="status-dot" class="status-dot status-ok" aria-label="Authenticated"></span>
-                <button id="expand-status" class="expand-btn" aria-label="See details">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polyline points="6,9 12,15 18,9" stroke="#7A7A7A" stroke-width="2" fill="none"/>
-                    </svg>
-                </button>
-            </div>
             
-            <!-- Expandable status details (hidden by default) -->
-            <div id="status-details" class="status-details hidden">
-                <div class="status-item">
-                    <span class="status-label">Status:</span>
-                    <span class="status-value authenticated">✓ Authenticated</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-label">Gmail Access:</span>
-                    <span class="status-value enabled">✓ Enabled</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-label">Last Login:</span>
-                    <span id="last-login" class="status-value">Just now</span>
-                </div>
-            </div>
-            
-            <!-- Email List Section -->
-            <div class="email-section">
-                <div class="section-header">
-                    <h3>Recent Sent Emails</h3>
-                    <button id="refresh-emails-btn" class="refresh-btn">Refresh</button>
-                </div>
-                
-                <div id="emails-loading" class="emails-loading hidden">
-                    <div class="spinner-small"></div>
-                    <p>Loading emails...</p>
-                </div>
-                
-                <div id="emails-list" class="emails-list">
-                    <!-- Email items will be populated here -->
-                </div>
-                
-                <div id="emails-empty" class="emails-empty hidden">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="#9aa0a6" stroke-width="2" fill="none"/>
-                        <polyline points="22,6 12,13 2,6" stroke="#9aa0a6" stroke-width="2" fill="none"/>
-                    </svg>
-                    <p>No sent emails found</p>
-                </div>
-                
-                <div id="emails-error" class="emails-error hidden">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="10" stroke="#ea4335" stroke-width="2" fill="#fce8e6"/>
-                        <line x1="15" y1="9" x2="9" y2="15" stroke="#ea4335" stroke-width="2"/>
-                        <line x1="9" y1="9" x2="15" y2="15" stroke="#ea4335" stroke-width="2"/>
-                    </svg>
-                    <p id="emails-error-message">Failed to load emails</p>
-                    <button id="retry-emails-btn" class="retry-btn-small">Try Again</button>
-                </div>
-                
-                <!-- Email Enrollment Section -->
-                <div id="enrollment-section" class="enrollment-section hidden">
-                    <div class="enrollment-header">
-                        <h4>Follow-Up Enrollment</h4>
-                    </div>
-                    <div class="enrollment-controls">
-                        <div class="sequence-select-group">
-                            <label for="sequence-select">Choose sequence:</label>
-                            <select id="sequence-select" class="sequence-select">
-                                <option value="">Select a sequence...</option>
-                            </select>
-                        </div>
-                        <div class="enrollment-buttons">
-                            <button id="enroll-selected-btn" class="enroll-btn" disabled>
-                                Enroll Selected (<span id="selected-count">0</span>)
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="actions">
-                <button id="signout-btn" class="signout-btn">Sign Out</button>
-            </div>
-        </div>
-        
-        <!-- Error state -->
-        <div id="error" class="error-container hidden">
-            <div class="error-content">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="10" stroke="#ea4335" stroke-width="2" fill="#fce8e6"/>
-                    <line x1="15" y1="9" x2="9" y2="15" stroke="#ea4335" stroke-width="2"/>
-                    <line x1="9" y1="9" x2="15" y2="15" stroke="#ea4335" stroke-width="2"/>
-                </svg>
-                <h3>Authentication Error</h3>
-                <p id="error-message">Unable to authenticate. Please try again.</p>
-                <button id="retry-btn" class="retry-btn">Try Again</button>
-            </div>
-        </div>
-        
-        <!-- Sequence Configuration Panel -->
-        <div id="sequence-panel" class="sequence-panel hidden">
-            <div class="sequence-header">
-                <button id="back-btn" class="back-btn" aria-label="Back to main">
+            <div class="features">
+                <div class="feature">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M19 12H6m0 0l6 6m-6-6l6-6" stroke="#D2222D" stroke-width="2"/>
+                        <path d="M9 12l2 2 4-4" stroke="#137333" stroke-width="2" fill="none"/>
+                        <circle cx="12" cy="12" r="10" stroke="#137333" stroke-width="2" fill="none"/>
                     </svg>
-                </button>
-                <h2>Follow-Up Sequences</h2>
-                <button id="add-sequence-btn" class="add-sequence-btn">+ New</button>
-            </div>
-            
-            <div class="sequence-content">
-                <!-- Sequence List -->
-                <div id="sequences-list" class="sequences-list">
-                    <!-- Sequences will be populated here -->
+                    <span>OAuth Authentication</span>
                 </div>
-                
-                <div id="sequences-empty" class="sequences-empty hidden">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#7A7A7A" stroke-width="2"/>
-                        <polyline points="14,2 14,8 20,8" stroke="#7A7A7A" stroke-width="2"/>
-                        <line x1="12" y1="18" x2="12" y2="12" stroke="#7A7A7A" stroke-width="2"/>
-                        <line x1="9" y1="15" x2="15" y2="15" stroke="#7A7A7A" stroke-width="2"/>
+                <div class="feature">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 12l2 2 4-4" stroke="#137333" stroke-width="2" fill="none"/>
+                        <circle cx="12" cy="12" r="10" stroke="#137333" stroke-width="2" fill="none"/>
                     </svg>
-                    <p>No sequences created yet</p>
-                    <p class="sequences-empty-subtitle">Create your first follow-up sequence to get started</p>
+                    <span>Sequence Management</span>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Sequence Form Modal -->
-        <div id="sequence-form-modal" class="sequence-form-modal hidden">
-            <div class="sequence-form-content">
-                <div class="sequence-form-header">
-                    <h3 id="sequence-form-title">New Follow-Up Sequence</h3>
-                    <button id="close-form-btn" class="close-form-btn" aria-label="Close">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="18" y1="6" x2="6" y2="18" stroke="#7A7A7A" stroke-width="2"/>
-                            <line x1="6" y1="6" x2="18" y2="18" stroke="#7A7A7A" stroke-width="2"/>
-                        </svg>
-                    </button>
+                <div class="feature">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 12l2 2 4-4" stroke="#137333" stroke-width="2" fill="none"/>
+                        <circle cx="12" cy="12" r="10" stroke="#137333" stroke-width="2" fill="none"/>
+                    </svg>
+                    <span>Batch Email Enrollment</span>
                 </div>
-                
-                <form id="sequence-form" class="sequence-form">
-                    <div class="form-group">
-                        <label for="sequence-name">Sequence Name*</label>
-                        <input type="text" id="sequence-name" name="name" required placeholder="e.g., Client Follow-up, Product Demo">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Send Window Settings</label>
-                        <div class="send-window-group">
-                            <div class="days-group">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="sendDays" value="monday" checked> Monday
-                                </label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="sendDays" value="tuesday" checked> Tuesday
-                                </label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="sendDays" value="wednesday" checked> Wednesday
-                                </label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="sendDays" value="thursday" checked> Thursday
-                                </label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="sendDays" value="friday" checked> Friday
-                                </label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="sendDays" value="saturday"> Saturday
-                                </label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" name="sendDays" value="sunday"> Sunday
-                                </label>
-                            </div>
-                            <div class="hours-group">
-                                <label for="send-start-hour">Send between:</label>
-                                <select id="send-start-hour" name="startHour">
-                                    <option value="6">6:00 AM</option>
-                                    <option value="7">7:00 AM</option>
-                                    <option value="8">8:00 AM</option>
-                                    <option value="9" selected>9:00 AM</option>
-                                    <option value="10">10:00 AM</option>
-                                    <option value="11">11:00 AM</option>
-                                    <option value="12">12:00 PM</option>
-                                    <option value="13">1:00 PM</option>
-                                    <option value="14">2:00 PM</option>
-                                    <option value="15">3:00 PM</option>
-                                    <option value="16">4:00 PM</option>
-                                    <option value="17">5:00 PM</option>
-                                </select>
-                                <span>and</span>
-                                <select id="send-end-hour" name="endHour">
-                                    <option value="10">10:00 AM</option>
-                                    <option value="11">11:00 AM</option>
-                                    <option value="12">12:00 PM</option>
-                                    <option value="13">1:00 PM</option>
-                                    <option value="14">2:00 PM</option>
-                                    <option value="15">3:00 PM</option>
-                                    <option value="16">4:00 PM</option>
-                                    <option value="17" selected>5:00 PM</option>
-                                    <option value="18">6:00 PM</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Follow-Up Steps (up to 4)</label>
-                        <div id="steps-container" class="steps-container">
-                            <!-- Steps will be added dynamically -->
-                        </div>
-                        <button type="button" id="add-step-btn" class="add-step-btn">+ Add Step</button>
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="button" id="cancel-form-btn" class="cancel-btn">Cancel</button>
-                        <button type="submit" id="save-sequence-btn" class="save-btn">Save Sequence</button>
-                    </div>
-                </form>
+                <div class="feature">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 12l2 2 4-4" stroke="#137333" stroke-width="2" fill="none"/>
+                        <circle cx="12" cy="12" r="10" stroke="#137333" stroke-width="2" fill="none"/>
+                    </svg>
+                    <span>Status Tracking</span>
+                </div>
             </div>
         </div>
     </div>
-    
+
     <script src="popup.js"></script>
 </body>
 </html>

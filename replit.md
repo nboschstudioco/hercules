@@ -2,7 +2,7 @@
 
 ## Overview
 
-A Chrome extension that automates Gmail follow-up sequences through a standalone popup interface. The extension uses OAuth authentication to securely access Gmail accounts and provides tools to manage email follow-up campaigns directly within the browser. The system is designed to handle the complete follow-up workflow - from email enrollment to sequence management - without requiring external servers or databases.
+A Chrome extension that automates Gmail follow-up sequences through a comprehensive side panel interface. The extension uses OAuth authentication to securely access Gmail accounts and provides tools to manage email follow-up campaigns, sequence configuration, and enrollment tracking directly within the browser. The system is designed to handle the complete follow-up workflow - from email enrollment to status management - without requiring external servers or databases.
 
 ## User Preferences
 
@@ -11,10 +11,11 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Frontend Architecture
-- **Manifest V3 Chrome Extension**: Modern extension architecture using service workers instead of background pages
-- **Popup-Based Interface**: Self-contained UI in popup.html with CSS styling and JavaScript functionality
-- **Material Design Components**: Clean, responsive interface following Google's design principles
-- **State Management**: Client-side state management for authentication status and user sessions
+- **Manifest V3 Chrome Extension**: Modern extension architecture using service workers and side panel API
+- **Side Panel Interface**: Full-featured UI in sidepanel.html utilizing complete vertical space for optimal user experience
+- **Minimal Popup Interface**: Simple popup.html that opens the side panel for main functionality
+- **Material Design Components**: Clean, responsive interface following Google's design principles with brand color integration
+- **State Management**: Client-side state management for authentication status, sequences, and enrollment tracking
 
 ### Authentication & Authorization
 - **Chrome Identity API**: Leverages browser's built-in OAuth flow for secure authentication
@@ -35,8 +36,17 @@ Preferred communication style: Simple, everyday language.
 
 ### Extension Components
 - **Background Script**: Service worker for handling OAuth, API calls, and extension lifecycle
-- **Popup Interface**: Main user interface for authentication and follow-up management
-- **Manifest Configuration**: Extension permissions, OAuth client configuration, and API access definitions
+- **Side Panel Interface**: Main user interface for authentication, sequence management, email enrollment, and status tracking
+- **Popup Interface**: Minimal interface that opens the side panel application
+- **Manifest Configuration**: Extension permissions including sidePanel API, OAuth client configuration, and API access definitions
+
+### Side Panel Features
+- **Three-Tab Navigation**: Emails, Sequences, and Enrollments tabs for organized functionality
+- **Email Management**: Display recent sent emails with checkbox selection for batch operations
+- **Sequence CRUD Operations**: Create, read, update, and delete follow-up sequences with step configuration
+- **Enrollment Management**: Track active, paused, and completed enrollments with status controls
+- **Send Window Configuration**: Configurable days and hours for automated email sending
+- **Persistent Storage**: All data stored locally using Chrome's storage API
 
 ## External Dependencies
 
@@ -50,6 +60,12 @@ Preferred communication style: Simple, everyday language.
 - `gmail.send`: Permission to send emails for follow-ups
 - `gmail.modify`: Ability to modify email properties and labels
 - `userinfo.email`: Access to user's email address for identification
+
+### Extension Permissions
+- `identity`: OAuth authentication flow
+- `storage`: Local data persistence for sequences and enrollments
+- `activeTab`: Current tab access
+- `sidePanel`: Side panel API for main interface
 
 ### Development Dependencies
 - **Chrome Extensions API**: Manifest V3 extension framework

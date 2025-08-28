@@ -1,68 +1,22 @@
 Gmail Auto Follow-Up Extension
 Context
-This Chrome extension allows users to automate Gmail follow-ups by enrolling sent emails into preconfigured message sequences. Users authenticate via OAuth, view recent sent emails, select one or more emails using checkboxes, and enroll chosen messages into a stored follow-up sequence. Sequence configuration is managed once by the user/admin in a settings panel, ensuring rapid enrollment at the point of need.
+This Chrome extension is built for the new Chrome extension side panel, offering a spacious, persistent UI for automating Gmail follow-ups. Users authenticate, design reusable message sequences, batch-select sent emails, and enroll those emails into preconfigured sequences via the side panel interface.
 
 Core Features
-OAuth Authentication: Secure Google login to enable Gmail API access.
-(Complete)
+Side Panel UI:
 
-Email Fetching with Multi-Select: Display recent sent emails with checkboxes for multi-select.
-(Complete)
+Entire app interface (authentication, sequence design, email selection/enrollment, status dashboard) runs inside the extension’s side panel, not the popup.
 
-Admin Sequence Configuration Panel:
+More screen space for advanced configuration and usability.
 
-Add/edit/delete follow-up sequences in a dedicated settings panel.
+OAuth Authentication: Secure Google/Gmail login.
 
-Each sequence can have up to 4 steps, 1–3 plain-text variants per step, and custom scheduling (business days/hours and gaps between steps).
+Recent Sent Emails: Fetch, display, and select emails in the side panel.
 
-Sequences are named and saved for dropdown selection at enrollment.
+Reusable Sequence Designer: Create, review, edit, and delete named sequences (with up to 4 steps and variants).
 
-Bulk Email Enrollment:
+Batch Enrollment: Select emails, pick sequence from dropdown, and enroll with one click.
 
-User selects one or more emails with checkboxes.
+Enrollment Overview: View all enrolled emails and manage status/actions.
 
-User is prompted (modal or inline) to choose one preconfigured sequence from a dropdown.
-
-After confirming ("Enroll" button), all selected emails are scheduled for follow-up based on the chosen sequence parameters.
-
-Enrollment Status:
-
-Dashboard lists enrolled emails and assigned sequence names.
-
-Shows current status (Pending/Active/Paused/Completed).
-
-User can pause, un-enroll, or reassign sequence.
-
-Build Order
-OAuth Authentication (COMPLETE)
-
-Email Fetching with Multi-Select (COMPLETE)
-
-Admin Sequence Configuration Panel
-
-Implement panel (settings tab or modal) for users to create, review, edit, and delete reusable follow-up sequences.
-
-Store all sequence data persistently.
-
-Bulk Enrollment Flow
-
-Integrate with email list: selecting emails, prompt for sequence dropdown, batch enroll upon confirmation.
-
-Store enrollment data: email/thread ID → sequence assignment.
-
-Enrollment Status Dashboard
-
-Display all current enrollments and sequences.
-
-Add UI for pause/un-enroll/edit as needed.
-
-Scheduler and Automation
-
-Implement message delivery per sequence/schedule.
-
-Add reply monitoring and status updates.
-
-UI/UX Notes
-Ensure compact, modern layout to maximize email list display space.
-
-All sequence enrollment actions occur only after admin configuration—users cannot modify sequence details at enrollment.
+Scheduler/Automation: Automatically send follow-ups on schedule and monitor replies to update status.
