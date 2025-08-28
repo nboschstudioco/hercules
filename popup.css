@@ -1,3 +1,12 @@
+:root {
+  --color-amaranth-red: #D2222D;
+  --color-amber: #FFBF00;
+  --color-black-olive: #404040;
+  --color-pure-white: #FFFFFF;
+  --color-steel-gray: #7A7A7A;
+  --color-silver-gray: #BBBBBB;
+}
+
 /* Reset and base styles */
 * {
     margin: 0;
@@ -15,8 +24,8 @@ html, body {
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: #ffffff;
-    color: #202124;
+    background: var(--color-pure-white);
+    color: var(--color-black-olive);
     line-height: 1.5;
 }
 
@@ -38,13 +47,13 @@ body {
     gap: 8px;
     margin-bottom: 12px;
     padding-bottom: 8px;
-    border-bottom: 1px solid #e8eaed;
+    border-bottom: 1px solid var(--color-steel-gray);
 }
 
 .header h1 {
     font-size: 16px;
     font-weight: 500;
-    color: #202124;
+    color: var(--color-amaranth-red);
 }
 
 .logo {
@@ -66,8 +75,8 @@ body {
 .spinner {
     width: 24px;
     height: 24px;
-    border: 2px solid #e8eaed;
-    border-top: 2px solid #4285f4;
+    border: 2px solid var(--color-silver-gray);
+    border-top: 2px solid var(--color-amaranth-red);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -78,7 +87,7 @@ body {
 }
 
 .loading p {
-    color: #5f6368;
+    color: var(--color-steel-gray);
     font-size: 14px;
 }
 
@@ -97,12 +106,12 @@ body {
 .signin-content h2 {
     font-size: 24px;
     font-weight: 400;
-    color: #202124;
+    color: var(--color-amaranth-red);
     margin-bottom: 8px;
 }
 
 .signin-content p {
-    color: #5f6368;
+    color: var(--color-steel-gray);
     font-size: 14px;
     margin-bottom: 32px;
     line-height: 1.4;
@@ -115,8 +124,8 @@ body {
     gap: 12px;
     width: 100%;
     padding: 12px 24px;
-    background: #4285f4;
-    color: white;
+    background: var(--color-amaranth-red);
+    color: var(--color-pure-white);
     border: none;
     border-radius: 24px;
     font-size: 14px;
@@ -126,18 +135,18 @@ body {
 }
 
 .signin-btn:hover {
-    background: #3367d6;
+    background: #B11E28;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
 }
 
 .signin-btn:active {
-    background: #2d5aa0;
+    background: #A01B24;
     transform: translateY(1px);
 }
 
 .signin-btn:disabled {
-    background: #dadce0;
-    color: #9aa0a6;
+    background: var(--color-silver-gray);
+    color: var(--color-steel-gray);
     cursor: not-allowed;
     transform: none;
 }
@@ -170,7 +179,7 @@ body {
     flex-grow: 1;
     font-size: 13px;
     font-weight: 500;
-    color: #202124;
+    color: var(--color-black-olive);
     word-break: break-all;
 }
 
@@ -185,15 +194,15 @@ body {
 }
 
 .status-ok {
-    background-color: #137333;
+    background-color: var(--color-amber);
 }
 
 .status-error {
-    background-color: #ea4335;
+    background-color: var(--color-amaranth-red);
 }
 
 .status-warning {
-    background-color: #fbbc05;
+    background-color: var(--color-amber);
 }
 
 .expand-btn {
@@ -212,7 +221,7 @@ body {
 }
 
 .expand-btn:hover {
-    background-color: #e8eaed;
+    background-color: var(--color-silver-gray);
 }
 
 .expand-btn.expanded {
@@ -221,8 +230,8 @@ body {
 
 /* Expandable status details */
 .status-details {
-    background: #ffffff;
-    border: 1px solid #eee;
+    background: var(--color-pure-white);
+    border: 1px solid var(--color-steel-gray);
     border-radius: 6px;
     padding: 8px 12px;
     margin-top: 4px;
@@ -237,12 +246,12 @@ body {
 }
 
 .status-item:not(:last-child) {
-    border-bottom: 1px solid #f1f3f4;
+    border-bottom: 1px solid var(--color-silver-gray);
 }
 
 .status-label {
     font-size: 12px;
-    color: #5f6368;
+    color: var(--color-steel-gray);
 }
 
 .status-value {
@@ -252,13 +261,13 @@ body {
 
 .status-value.authenticated,
 .status-value.enabled {
-    color: #137333;
+    color: var(--color-amaranth-red);
 }
 
 /* Email section styles */
 .email-section {
     margin-top: 8px;
-    border-top: 1px solid #e8eaed;
+    border-top: 1px solid var(--color-steel-gray);
     padding-top: 8px;
     flex-grow: 1;
     display: flex;
@@ -276,15 +285,15 @@ body {
 .section-header h3 {
     font-size: 14px;
     font-weight: 500;
-    color: #202124;
+    color: var(--color-amaranth-red);
     margin: 0;
 }
 
 .refresh-btn {
     padding: 4px 8px;
     background: transparent;
-    color: #4285f4;
-    border: 1px solid #4285f4;
+    color: var(--color-amaranth-red);
+    border: 1px solid var(--color-amaranth-red);
     border-radius: 12px;
     font-size: 11px;
     font-weight: 500;
@@ -293,8 +302,8 @@ body {
 }
 
 .refresh-btn:hover {
-    background: #4285f4;
-    color: white;
+    background: var(--color-amaranth-red);
+    color: var(--color-pure-white);
 }
 
 .emails-loading {
@@ -303,15 +312,15 @@ body {
     justify-content: center;
     gap: 8px;
     padding: 12px;
-    color: #5f6368;
+    color: var(--color-steel-gray);
     font-size: 13px;
 }
 
 .spinner-small {
     width: 14px;
     height: 14px;
-    border: 2px solid #e8eaed;
-    border-top: 2px solid #4285f4;
+    border: 2px solid var(--color-silver-gray);
+    border-top: 2px solid var(--color-amaranth-red);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -331,10 +340,10 @@ body {
     gap: 8px;
     padding: 8px 10px;
     border: none;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--color-steel-gray);
     border-radius: 0;
     margin-bottom: 0;
-    background: #ffffff;
+    background: var(--color-pure-white);
     transition: all 0.2s ease;
     cursor: pointer;
     font-size: 13px;
@@ -345,18 +354,18 @@ body {
 }
 
 .email-item:hover {
-    background: #f8f9fa;
-    border-color: #dadce0;
+    background: #F5F5F5;
+    border-color: var(--color-silver-gray);
 }
 
 .email-item.selected {
-    background: #e8f0fe;
-    border-color: #4285f4;
+    background: #FFF5E6;
+    border-color: var(--color-amber);
 }
 
 .email-checkbox {
     margin-right: 4px;
-    accent-color: #4285f4;
+    accent-color: var(--color-amaranth-red);
     cursor: pointer;
     transform: scale(0.9);
 }
@@ -368,7 +377,7 @@ body {
 
 .email-subject {
     font-weight: 500;
-    color: #202124;
+    color: var(--color-black-olive);
     font-size: 13px;
     margin-bottom: 2px;
     white-space: nowrap;
@@ -378,7 +387,7 @@ body {
 }
 
 .email-to {
-    color: #888;
+    color: var(--color-steel-gray);
     font-size: 12px;
     margin-bottom: 2px;
     white-space: nowrap;
@@ -388,7 +397,7 @@ body {
 }
 
 .email-date {
-    color: #888;
+    color: var(--color-steel-gray);
     font-size: 11px;
     white-space: nowrap;
     margin-left: auto;
@@ -402,7 +411,7 @@ body {
     gap: 8px;
     padding: 20px;
     text-align: center;
-    color: #5f6368;
+    color: var(--color-steel-gray);
 }
 
 .emails-empty p {
@@ -426,7 +435,7 @@ body {
 
 .emails-error p {
     margin: 0;
-    color: #ea4335;
+    color: var(--color-amaranth-red);
     font-size: 13px;
 }
 
@@ -437,8 +446,8 @@ body {
 
 .retry-btn-small {
     padding: 6px 12px;
-    background: #4285f4;
-    color: white;
+    background: var(--color-amber);
+    color: var(--color-black-olive);
     border: none;
     border-radius: 12px;
     font-size: 11px;
@@ -448,21 +457,21 @@ body {
 }
 
 .retry-btn-small:hover {
-    background: #3367d6;
+    background: #E6A500;
 }
 
 .actions {
     margin-top: 8px;
     padding-top: 8px;
-    border-top: 1px solid #e8eaed;
+    border-top: 1px solid var(--color-steel-gray);
 }
 
 .signout-btn {
     width: 100%;
     padding: 8px 16px;
     background: transparent;
-    color: #5f6368;
-    border: 1px solid #dadce0;
+    color: var(--color-steel-gray);
+    border: 1px solid var(--color-silver-gray);
     border-radius: 16px;
     font-size: 13px;
     cursor: pointer;
@@ -470,12 +479,12 @@ body {
 }
 
 .signout-btn:hover {
-    background: #f8f9fa;
-    border-color: #c4c7c5;
+    background: #F5F5F5;
+    border-color: var(--color-steel-gray);
 }
 
 .signout-btn:active {
-    background: #f1f3f4;
+    background: #EDEDED;
 }
 
 /* Error state */
@@ -509,8 +518,8 @@ body {
 
 .retry-btn {
     padding: 10px 24px;
-    background: #4285f4;
-    color: white;
+    background: var(--color-amber);
+    color: var(--color-black-olive);
     border: none;
     border-radius: 20px;
     font-size: 14px;
@@ -520,7 +529,7 @@ body {
 }
 
 .retry-btn:hover {
-    background: #3367d6;
+    background: #E6A500;
 }
 
 .retry-btn:active {

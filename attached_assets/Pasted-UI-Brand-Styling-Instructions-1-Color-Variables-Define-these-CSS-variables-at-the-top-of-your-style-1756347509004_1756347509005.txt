@@ -1,0 +1,86 @@
+UI Brand Styling Instructions
+1. Color Variables
+Define these CSS variables at the top of your stylesheet for easy updates:
+
+css
+:root {
+  --color-amaranth-red: #D2222D;
+  --color-amber: #FFBF00;
+  --color-black-olive: #404040;
+  --color-pure-white: #FFFFFF;
+  --color-steel-gray: #7A7A7A;
+  --color-silver-gray: #BBBBBB;
+}
+2. Apply Brand Colors
+A. Backgrounds & Containers
+Main background: var(--color-pure-white)
+
+Cards/boxes: Use var(--color-black-olive) or var(--color-pure-white) for contrast.
+
+Dividers/borders: Use var(--color-steel-gray).
+
+B. Headers/Text
+Main headings/calls to action: var(--color-amaranth-red)
+
+Regular text: var(--color-black-olive) or var(--color-steel-gray) (for secondary text).
+
+C. Buttons & Links
+Primary actions (e.g., sign-in, enroll): background var(--color-amaranth-red), text var(--color-pure-white).
+
+Secondary actions: background var(--color-amber), text var(--color-black-olive).
+
+D. Accents & Status Dots
+Authenticated dot: var(--color-amber) for attention or var(--color-amaranth-red) for main accent.
+
+Error dot: var(--color-amaranth-red).
+
+Info/warning dot: Use var(--color-amber).
+
+3. Example Usage
+css
+body {
+  background: var(--color-pure-white);
+  color: var(--color-black-olive);
+}
+
+.header h1 {
+  color: var(--color-amaranth-red);
+}
+
+.button-primary {
+  background: var(--color-amaranth-red);
+  color: var(--color-pure-white);
+}
+
+.button-secondary {
+  background: var(--color-amber);
+  color: var(--color-black-olive);
+}
+
+.email-row {
+  border-bottom: 1px solid var(--color-steel-gray);
+  background: var(--color-pure-white);
+}
+
+.status-dot.ok {
+  background: var(--color-amber);
+}
+.status-dot.error {
+  background: var(--color-amaranth-red);
+}
+.status-dot.info {
+  background: var(--color-amber);
+}
+4. Testing and Accessibility
+Ensure contrast for readability (especially text over colored backgrounds, such as Amaranth Red with Pure White or vice versa).
+
+Buttons should be a minimum 44px tall for touch usability, and always use sufficient padding.
+
+Use accessible color combinations for users with visual impairments.
+
+Deliverable
+All colors updated to match brand palette using CSS variables.
+
+UI elements (backgrounds, text, buttons, status dots, borders) assigned the correct colors as specified above.
+
+Code is commented and variables are used instead of hardcoded hex values.
