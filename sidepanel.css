@@ -490,14 +490,34 @@ body {
     text-transform: uppercase;
 }
 
+.enrollment-status.pending {
+    background: #F8F9FA;
+    color: #5F6368;
+}
+
 .enrollment-status.active {
     background: #E6F7ED;
     color: #137333;
 }
 
-.enrollment-status.paused {
+.enrollment-status.paused-manual {
     background: #FEF7E0;
     color: #EA8600;
+}
+
+.enrollment-status.paused-reply {
+    background: #E8F0FE;
+    color: #1A73E8;
+}
+
+.enrollment-status.finished {
+    background: #E6F7ED;
+    color: #0D652D;
+}
+
+.enrollment-status.error {
+    background: #FCE8E6;
+    color: #D93025;
 }
 
 .enrollment-status.completed {

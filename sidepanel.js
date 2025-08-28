@@ -862,12 +862,24 @@ class GmailFollowUpApp {
                     sequence: sequence,
                     enrolledAt: new Date().toISOString(),
                     currentStep: 0,
-                    status: 'active',
-                    nextSendDate: this.calculateNextSendDate(sequence.steps[0], sequence.sendWindow)
+                    status: 'pending',
+                    statusReason: null,
+                    nextSendDate: this.calculateNextSendDate(sequence.steps[0], sequence.sendWindow),
+                    lastChecked: null,
+                    alarmId: null
                 };
             });
             
             await this.saveEnrollments(enrollments);
+            
+            // Schedule initial sends for all enrollments
+            for (const enrollment of enrollments) {
+                await this.scheduleNextSend(enrollment);
+            }
+            
+            // Update all enrollments in storage
+            const allEnrollments = await this.getEnrollments();
+            await chrome.storage.local.set({ emailEnrollments: allEnrollments });
             
             // Clear selections
             this.selectedEmails.clear();
@@ -905,7 +917,13 @@ class GmailFollowUpApp {
             
             let filteredEnrollments = enrollments;
             if (statusFilter) {
-                filteredEnrollments = enrollments.filter(e => e.status === statusFilter);
+                if (statusFilter === 'paused-manual') {
+                    filteredEnrollments = enrollments.filter(e => e.status === 'paused' && e.statusReason === 'manual');
+                } else if (statusFilter === 'paused-reply') {
+                    filteredEnrollments = enrollments.filter(e => e.status === 'paused' && e.statusReason === 'reply');
+                } else {
+                    filteredEnrollments = enrollments.filter(e => e.status === statusFilter);
+                }
             }
             
             this.renderEnrollmentsList(filteredEnrollments);
@@ -926,7 +944,7 @@ class GmailFollowUpApp {
             <div class="enrollment-item">
                 <div class="enrollment-header">
                     <h4 class="enrollment-subject">${this.escapeHtml(enrollment.subject)}</h4>
-                    <span class="enrollment-status ${enrollment.status}">${enrollment.status}</span>
+                    <span class="enrollment-status ${this.getStatusClass(enrollment)}">${this.getStatusDisplay(enrollment)}</span>
                 </div>
                 <div class="enrollment-details">
                     <div>To: ${this.escapeHtml(enrollment.to)}</div>
@@ -935,9 +953,9 @@ class GmailFollowUpApp {
                     <div>Next: ${this.formatDate(enrollment.nextSendDate)}</div>
                 </div>
                 <div class="enrollment-actions">
-                    ${enrollment.status === 'active' ? 
+                    ${this.canPause(enrollment) ? 
                         `<button class="enrollment-pause-btn" data-index="${index}">Pause</button>` :
-                        enrollment.status === 'paused' ?
+                        this.canResume(enrollment) ?
                         `<button class="enrollment-resume-btn" data-index="${index}">Resume</button>` : ''
                     }
                     <button class="enrollment-unenroll-btn" data-index="${index}">Unenroll</button>
@@ -949,14 +967,14 @@ class GmailFollowUpApp {
         this.elements.enrollmentsList.querySelectorAll('.enrollment-pause-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const index = parseInt(btn.dataset.index);
-                await this.updateEnrollmentStatus(enrollments[index].id, 'paused');
+                await this.pauseEnrollment(enrollments[index].id);
             });
         });
         
         this.elements.enrollmentsList.querySelectorAll('.enrollment-resume-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const index = parseInt(btn.dataset.index);
-                await this.updateEnrollmentStatus(enrollments[index].id, 'active');
+                await this.resumeEnrollment(enrollments[index].id);
             });
         });
         
@@ -970,11 +988,45 @@ class GmailFollowUpApp {
         });
     }
 
-    async updateEnrollmentStatus(enrollmentId, status) {
+    async pauseEnrollment(enrollmentId) {
+        const enrollments = await this.getEnrollments();
+        const enrollment = enrollments.find(e => e.id === enrollmentId);
+        if (enrollment && this.canPause(enrollment)) {
+            // Cancel any existing alarm
+            if (enrollment.alarmId) {
+                chrome.alarms.clear(enrollment.alarmId);
+            }
+            
+            enrollment.status = 'paused';
+            enrollment.statusReason = 'manual';
+            enrollment.alarmId = null;
+            
+            await chrome.storage.local.set({ emailEnrollments: enrollments });
+            this.loadEnrollments();
+        }
+    }
+
+    async resumeEnrollment(enrollmentId) {
+        const enrollments = await this.getEnrollments();
+        const enrollment = enrollments.find(e => e.id === enrollmentId);
+        if (enrollment && this.canResume(enrollment)) {
+            enrollment.status = enrollment.currentStep === 0 ? 'pending' : 'active';
+            enrollment.statusReason = null;
+            
+            // Schedule next alarm
+            await this.scheduleNextSend(enrollment);
+            
+            await chrome.storage.local.set({ emailEnrollments: enrollments });
+            this.loadEnrollments();
+        }
+    }
+
+    async updateEnrollmentStatus(enrollmentId, status, statusReason = null) {
         const enrollments = await this.getEnrollments();
         const enrollment = enrollments.find(e => e.id === enrollmentId);
         if (enrollment) {
             enrollment.status = status;
+            enrollment.statusReason = statusReason;
             await chrome.storage.local.set({ emailEnrollments: enrollments });
             this.loadEnrollments();
         }
@@ -982,6 +1034,14 @@ class GmailFollowUpApp {
 
     async removeEnrollment(enrollmentId) {
         const enrollments = await this.getEnrollments();
+        const enrollment = enrollments.find(e => e.id === enrollmentId);
+        
+        // Cancel any existing alarm
+        if (enrollment && enrollment.alarmId) {
+            chrome.alarms.clear(enrollment.alarmId);
+            await chrome.storage.local.remove([`alarm_${enrollment.alarmId}`]);
+        }
+        
         const updatedEnrollments = enrollments.filter(e => e.id !== enrollmentId);
         await chrome.storage.local.set({ emailEnrollments: updatedEnrollments });
         this.loadEnrollments();
@@ -1018,6 +1078,150 @@ class GmailFollowUpApp {
         }
         
         return sendDate.toISOString();
+    }
+
+    // ==========================================
+    // STATUS MANAGEMENT
+    // ==========================================
+
+    getStatusDisplay(enrollment) {
+        if (enrollment.status === 'paused') {
+            return enrollment.statusReason === 'manual' ? 'Paused: Manual' : 'Paused: Reply Detected';
+        }
+        return enrollment.status.charAt(0).toUpperCase() + enrollment.status.slice(1);
+    }
+
+    getStatusClass(enrollment) {
+        const baseStatus = enrollment.status;
+        if (baseStatus === 'paused') {
+            return enrollment.statusReason === 'manual' ? 'paused-manual' : 'paused-reply';
+        }
+        return baseStatus;
+    }
+
+    canPause(enrollment) {
+        return ['pending', 'active'].includes(enrollment.status);
+    }
+
+    canResume(enrollment) {
+        return enrollment.status === 'paused';
+    }
+
+    // ==========================================
+    // AUTOMATION & SCHEDULING
+    // ==========================================
+
+    async scheduleNextSend(enrollment) {
+        const alarmId = `send_${enrollment.id}_${Date.now()}`;
+        const sendTime = new Date(enrollment.nextSendDate);
+        
+        // Create Chrome alarm
+        chrome.alarms.create(alarmId, { when: sendTime.getTime() });
+        
+        enrollment.alarmId = alarmId;
+        enrollment.status = 'active';
+        
+        // Store alarm info for background processing
+        await chrome.storage.local.set({
+            [`alarm_${alarmId}`]: {
+                enrollmentId: enrollment.id,
+                scheduledFor: enrollment.nextSendDate,
+                currentStep: enrollment.currentStep
+            }
+        });
+    }
+
+    async checkForReplies(enrollment) {
+        try {
+            const result = await chrome.storage.local.get(['authToken']);
+            if (!result.authToken) return false;
+
+            // Check for replies in the thread since enrollment
+            const response = await fetch(
+                `https://www.googleapis.com/gmail/v1/users/me/threads/${enrollment.threadId}`,
+                { headers: { 'Authorization': `Bearer ${result.authToken}` } }
+            );
+
+            if (!response.ok) return false;
+
+            const thread = await response.json();
+            
+            // Look for messages after enrollment that aren't from us
+            const enrolledDate = new Date(enrollment.enrolledAt);
+            const userEmail = result.userEmail || '';
+            
+            for (const message of thread.messages || []) {
+                const messageDate = new Date(parseInt(message.internalDate));
+                if (messageDate <= enrolledDate) continue;
+                
+                const fromHeader = message.payload.headers.find(h => h.name.toLowerCase() === 'from');
+                if (fromHeader && !fromHeader.value.includes(userEmail)) {
+                    return true; // Reply detected
+                }
+            }
+
+            return false;
+        } catch (error) {
+            console.error('Error checking for replies:', error);
+            return false;
+        }
+    }
+
+    async sendFollowUpEmail(enrollment, stepIndex) {
+        try {
+            const result = await chrome.storage.local.get(['authToken']);
+            if (!result.authToken) throw new Error('No auth token');
+
+            const step = enrollment.sequence.steps[stepIndex];
+            const emailBody = this.prepareEmailBody(step, enrollment);
+            
+            // Create the email message
+            const email = [
+                `To: ${enrollment.to}`,
+                `Subject: Re: ${enrollment.subject}`,
+                `In-Reply-To: ${enrollment.emailId}`,
+                `References: ${enrollment.emailId}`,
+                '',
+                emailBody
+            ].join('\r\n');
+
+            // Encode the email in base64url format
+            const encodedEmail = btoa(email).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+            // Send via Gmail API
+            const response = await fetch(
+                'https://www.googleapis.com/gmail/v1/users/me/messages/send',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${result.authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        raw: encodedEmail
+                    })
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`Failed to send email: ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error sending follow-up email:', error);
+            throw error;
+        }
+    }
+
+    prepareEmailBody(step, enrollment) {
+        let body = step.content;
+        
+        // Simple variable replacement
+        body = body.replace(/\{name\}/g, enrollment.to.split('<')[0].trim());
+        body = body.replace(/\{subject\}/g, enrollment.subject);
+        
+        return body;
     }
 
     // ==========================================
