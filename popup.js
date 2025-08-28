@@ -3,23 +3,12 @@
  * Opens side panel when requested
  */
 
-document.addEventListener('DOMContentLoaded', () => {
-    const openSidePanelBtn = document.getElementById('open-sidepanel-btn');
-    
-    if (openSidePanelBtn) {
-        openSidePanelBtn.addEventListener('click', async () => {
-            try {
-                // Open the side panel
-                await chrome.sidePanel.open();
-                
-                // Close the popup
-                window.close();
-            } catch (error) {
-                console.error('Failed to open side panel:', error);
-                
-                // Fallback: just close the popup
-                window.close();
-            }
-        });
+document.getElementById('open-sidepanel-btn').addEventListener('click', async () => {
+    try {
+        await chrome.sidePanel.open(); // No options needed for MV3
+        window.close();
+    } catch (e) {
+        console.error("Side panel opening failed:", e);
+        window.close();
     }
 });
