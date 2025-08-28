@@ -1,91 +1,68 @@
-# Gmail Auto Follow-Up Chrome Extension
+Gmail Auto Follow-Up Extension
+Context
+This Chrome extension allows users to automate Gmail follow-ups by enrolling sent emails into preconfigured message sequences. Users authenticate via OAuth, view recent sent emails, select one or more emails using checkboxes, and enroll chosen messages into a stored follow-up sequence. Sequence configuration is managed once by the user/admin in a settings panel, ensuring rapid enrollment at the point of need.
 
-A Chrome extension that automates Gmail follow-up sequences using OAuth authentication and the Gmail API.
+Core Features
+OAuth Authentication: Secure Google login to enable Gmail API access.
+(Complete)
 
-## 🚀 Features
+Email Fetching with Multi-Select: Display recent sent emails with checkboxes for multi-select.
+(Complete)
 
-- **Secure OAuth Authentication**: Uses Chrome Identity API for secure Google account authentication
-- **Gmail API Integration**: Full access to Gmail for reading, sending, and managing emails
-- **Modern UI**: Clean, responsive popup interface with Google Material Design principles
-- **Token Management**: Automatic token refresh and secure storage
-- **Error Handling**: Comprehensive error handling with user-friendly messages
+Admin Sequence Configuration Panel:
 
-## 📋 Prerequisites
+Add/edit/delete follow-up sequences in a dedicated settings panel.
 
-Before installing and using this extension, you'll need to set up OAuth credentials:
+Each sequence can have up to 4 steps, 1–3 plain-text variants per step, and custom scheduling (business days/hours and gaps between steps).
 
-### 1. Google Cloud Console Setup
+Sequences are named and saved for dropdown selection at enrollment.
 
-1. **Create a New Project**:
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Click "New Project" and give it a name (e.g., "Gmail Auto Follow-Up")
-   - Note your Project ID
+Bulk Email Enrollment:
 
-2. **Enable Gmail API**:
-   - In your project, go to "APIs & Services" > "Library"
-   - Search for "Gmail API"
-   - Click on it and press "Enable"
+User selects one or more emails with checkboxes.
 
-3. **Configure OAuth Consent Screen**:
-   - Go to "APIs & Services" > "OAuth consent screen"
-   - Choose "External" user type (unless you have a Google Workspace account)
-   - Fill in required fields:
-     - App name: "Gmail Auto Follow-Up"
-     - User support email: Your email
-     - Developer contact information: Your email
-   - Add scopes:
-     - `https://www.googleapis.com/auth/gmail.readonly`
-     - `https://www.googleapis.com/auth/gmail.send`
-     - `https://www.googleapis.com/auth/gmail.modify`
-     - `https://www.googleapis.com/auth/userinfo.email`
-   - Add test users (your Gmail account) if in testing mode
+User is prompted (modal or inline) to choose one preconfigured sequence from a dropdown.
 
-4. **Create OAuth Credentials**:
-   - Go to "APIs & Services" > "Credentials"
-   - Click "Create Credentials" > "OAuth 2.0 Client IDs"
-   - Choose "Chrome extension" as application type
-   - Enter your extension ID (get this after loading the unpacked extension)
-   - Copy the Client ID
+After confirming ("Enroll" button), all selected emails are scheduled for follow-up based on the chosen sequence parameters.
 
-### 2. Extension Configuration
+Enrollment Status:
 
-1. **Update manifest.json**:
-   ```json
-   "oauth2": {
-     "client_id": "YOUR_ACTUAL_CLIENT_ID_HERE.apps.googleusercontent.com",
-     "scopes": [
-       "https://www.googleapis.com/auth/gmail.readonly",
-       "https://www.googleapis.com/auth/gmail.send",
-       "https://www.googleapis.com/auth/gmail.modify",
-       "https://www.googleapis.com/auth/userinfo.email"
-     ]
-   }
-   ```
+Dashboard lists enrolled emails and assigned sequence names.
 
-2. **Get Extension ID**:
-   - Load the extension in Chrome (unpacked)
-   - Copy the extension ID from chrome://extensions/
-   - Update your OAuth credentials in Google Cloud Console with this ID
+Shows current status (Pending/Active/Paused/Completed).
 
-## 🛠️ Installation
+User can pause, un-enroll, or reassign sequence.
 
-1. **Clone or Download** this repository to your local machine
+Build Order
+OAuth Authentication (COMPLETE)
 
-2. **Update OAuth Configuration**:
-   - Replace `YOUR_OAUTH_CLIENT_ID_HERE` in `manifest.json` with your actual Client ID
+Email Fetching with Multi-Select (COMPLETE)
 
-3. **Load Extension in Chrome**:
-   - Open Chrome and go to `chrome://extensions/`
-   - Enable "Developer mode" (top right toggle)
-   - Click "Load unpacked"
-   - Select the extension directory
-   - Note the Extension ID and update your Google Cloud Console OAuth credentials
+Admin Sequence Configuration Panel
 
-4. **Test Authentication**:
-   - Click the extension icon in the Chrome toolbar
-   - Click "Sign in with Google"
-   - Grant the required permissions
-   - Verify your email address appears in the popup
+Implement panel (settings tab or modal) for users to create, review, edit, and delete reusable follow-up sequences.
 
-## 📁 Project Structure
+Store all sequence data persistently.
 
+Bulk Enrollment Flow
+
+Integrate with email list: selecting emails, prompt for sequence dropdown, batch enroll upon confirmation.
+
+Store enrollment data: email/thread ID → sequence assignment.
+
+Enrollment Status Dashboard
+
+Display all current enrollments and sequences.
+
+Add UI for pause/un-enroll/edit as needed.
+
+Scheduler and Automation
+
+Implement message delivery per sequence/schedule.
+
+Add reply monitoring and status updates.
+
+UI/UX Notes
+Ensure compact, modern layout to maximize email list display space.
+
+All sequence enrollment actions occur only after admin configuration—users cannot modify sequence details at enrollment.

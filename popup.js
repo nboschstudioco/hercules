@@ -26,7 +26,28 @@ class GmailAuthPopup {
             emailsEmpty: document.getElementById('emails-empty'),
             emailsError: document.getElementById('emails-error'),
             emailsErrorMessage: document.getElementById('emails-error-message'),
-            retryEmailsBtn: document.getElementById('retry-emails-btn')
+            retryEmailsBtn: document.getElementById('retry-emails-btn'),
+            // Sequence panel elements
+            settingsBtn: document.getElementById('settings-btn'),
+            sequencePanel: document.getElementById('sequence-panel'),
+            backBtn: document.getElementById('back-btn'),
+            addSequenceBtn: document.getElementById('add-sequence-btn'),
+            sequencesList: document.getElementById('sequences-list'),
+            sequencesEmpty: document.getElementById('sequences-empty'),
+            sequenceFormModal: document.getElementById('sequence-form-modal'),
+            sequenceForm: document.getElementById('sequence-form'),
+            sequenceFormTitle: document.getElementById('sequence-form-title'),
+            closeFormBtn: document.getElementById('close-form-btn'),
+            cancelFormBtn: document.getElementById('cancel-form-btn'),
+            saveSequenceBtn: document.getElementById('save-sequence-btn'),
+            sequenceName: document.getElementById('sequence-name'),
+            stepsContainer: document.getElementById('steps-container'),
+            addStepBtn: document.getElementById('add-step-btn'),
+            // Enrollment elements
+            enrollmentSection: document.getElementById('enrollment-section'),
+            sequenceSelect: document.getElementById('sequence-select'),
+            enrollSelectedBtn: document.getElementById('enroll-selected-btn'),
+            selectedCount: document.getElementById('selected-count')
         };
         
         this.init();
@@ -53,9 +74,28 @@ class GmailAuthPopup {
         this.elements.signinBtn.addEventListener('click', () => this.handleSignIn());
         this.elements.signoutBtn.addEventListener('click', () => this.handleSignOut());
         this.elements.retryBtn.addEventListener('click', () => this.handleRetry());
-        this.elements.refreshEmailsBtn.addEventListener('click', () => this.loadSentEmails());
-        this.elements.retryEmailsBtn.addEventListener('click', () => this.loadSentEmails());
+        this.elements.refreshEmailsBtn.addEventListener('click', () => {
+            this.loadSentEmails();
+            this.updateSequenceDropdown();
+        });
+        this.elements.retryEmailsBtn.addEventListener('click', () => {
+            this.loadSentEmails();
+            this.updateSequenceDropdown();
+        });
         this.elements.expandStatusBtn.addEventListener('click', () => this.toggleStatusDetails());
+        
+        // Sequence panel event listeners
+        this.elements.settingsBtn.addEventListener('click', () => this.showSequencePanel());
+        this.elements.backBtn.addEventListener('click', () => this.hideSequencePanel());
+        this.elements.addSequenceBtn.addEventListener('click', () => this.showSequenceForm());
+        this.elements.closeFormBtn.addEventListener('click', () => this.hideSequenceForm());
+        this.elements.cancelFormBtn.addEventListener('click', () => this.hideSequenceForm());
+        this.elements.sequenceForm.addEventListener('submit', (e) => this.handleSequenceFormSubmit(e));
+        this.elements.addStepBtn.addEventListener('click', () => this.addStep());
+        
+        // Enrollment event listeners
+        this.elements.sequenceSelect.addEventListener('change', () => this.updateEnrollButton());
+        this.elements.enrollSelectedBtn.addEventListener('click', () => this.enrollSelectedEmails());
     }
 
     showState(state) {
@@ -140,8 +180,9 @@ class GmailAuthPopup {
                     this.updateLastLoginTime();
                     this.showState('authenticated');
                     
-                    // Load sent emails after successful authentication
+                    // Load sent emails and sequences after successful authentication
                     await this.loadSentEmails();
+                    await this.updateSequenceDropdown();
                 } else {
                     throw new Error('Failed to retrieve user information');
                 }
@@ -438,6 +479,9 @@ class GmailAuthPopup {
         const emailItem = document.createElement('div');
         emailItem.className = 'email-item';
         emailItem.dataset.emailId = email.id;
+        emailItem.dataset.emailSubject = email.subject;
+        emailItem.dataset.emailTo = email.to;
+        emailItem.dataset.threadId = email.threadId;
         
         emailItem.innerHTML = `
             <input type="checkbox" class="email-checkbox" data-email-id="${email.id}">
@@ -473,6 +517,8 @@ class GmailAuthPopup {
         } else {
             emailItem.classList.remove('selected');
         }
+        // Update enrollment button when selection changes
+        this.updateEnrollButton();
     }
     
     escapeHtml(text) {
@@ -593,6 +639,559 @@ class GmailAuthPopup {
         } else {
             lastLoginElement.textContent = 'Just now';
         }
+    }
+
+    // ==========================================
+    // SEQUENCE MANAGEMENT FUNCTIONALITY
+    // ==========================================
+
+    // Storage functions for sequences
+    async saveSequences(sequences) {
+        try {
+            await chrome.storage.local.set({ followUpSequences: sequences });
+        } catch (error) {
+            console.error('Failed to save sequences:', error);
+            throw error;
+        }
+    }
+
+    async loadSequences() {
+        try {
+            const result = await chrome.storage.local.get(['followUpSequences']);
+            return result.followUpSequences || [];
+        } catch (error) {
+            console.error('Failed to load sequences:', error);
+            return [];
+        }
+    }
+
+    async deleteSequence(sequenceName) {
+        try {
+            const sequences = await this.loadSequences();
+            const updatedSequences = sequences.filter(seq => seq.name !== sequenceName);
+            await this.saveSequences(updatedSequences);
+            return updatedSequences;
+        } catch (error) {
+            console.error('Failed to delete sequence:', error);
+            throw error;
+        }
+    }
+
+    // Navigation functions
+    showSequencePanel() {
+        this.elements.authenticated.classList.add('hidden');
+        this.elements.sequencePanel.classList.remove('hidden');
+        this.loadSequencesView();
+    }
+
+    hideSequencePanel() {
+        this.elements.sequencePanel.classList.add('hidden');
+        this.elements.authenticated.classList.remove('hidden');
+    }
+
+    showSequenceForm(sequence = null) {
+        this.currentEditingSequence = sequence;
+        this.elements.sequenceFormModal.classList.remove('hidden');
+        
+        if (sequence) {
+            this.elements.sequenceFormTitle.textContent = 'Edit Follow-Up Sequence';
+            this.populateSequenceForm(sequence);
+        } else {
+            this.elements.sequenceFormTitle.textContent = 'New Follow-Up Sequence';
+            this.resetSequenceForm();
+        }
+        
+        this.elements.sequenceName.focus();
+    }
+
+    hideSequenceForm() {
+        this.elements.sequenceFormModal.classList.add('hidden');
+        this.currentEditingSequence = null;
+        this.resetSequenceForm();
+    }
+
+    async loadSequencesView() {
+        try {
+            const sequences = await this.loadSequences();
+            this.renderSequencesList(sequences);
+        } catch (error) {
+            console.error('Failed to load sequences view:', error);
+        }
+    }
+
+    renderSequencesList(sequences) {
+        const listContainer = this.elements.sequencesList;
+        const emptyState = this.elements.sequencesEmpty;
+
+        if (sequences.length === 0) {
+            listContainer.innerHTML = '';
+            emptyState.classList.remove('hidden');
+            return;
+        }
+
+        emptyState.classList.add('hidden');
+        listContainer.innerHTML = sequences.map((sequence, index) => `
+            <div class="sequence-item" data-sequence-index="${index}">
+                <div class="sequence-item-header">
+                    <h4 class="sequence-name">${this.escapeHtml(sequence.name)}</h4>
+                    <div class="sequence-actions">
+                        <button class="sequence-edit-btn" data-sequence-index="${index}">Edit</button>
+                        <button class="sequence-delete-btn" data-sequence-index="${index}">Delete</button>
+                    </div>
+                </div>
+                <div class="sequence-summary">
+                    <span class="sequence-step-count">${sequence.steps.length} step${sequence.steps.length === 1 ? '' : 's'}</span>
+                    • Send on ${this.formatSendDays(sequence.sendWindow.days)}
+                    • ${sequence.sendWindow.startHour}:00 - ${sequence.sendWindow.endHour}:00
+                </div>
+            </div>
+        `).join('');
+
+        // Add event listeners for edit and delete buttons
+        listContainer.querySelectorAll('.sequence-edit-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const index = parseInt(e.target.dataset.sequenceIndex);
+                this.showSequenceForm(sequences[index]);
+            });
+        });
+
+        listContainer.querySelectorAll('.sequence-delete-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const index = parseInt(e.target.dataset.sequenceIndex);
+                if (confirm(`Are you sure you want to delete "${sequences[index].name}"?`)) {
+                    try {
+                        await this.deleteSequence(sequences[index].name);
+                        this.loadSequencesView(); // Refresh the view
+                        this.updateSequenceDropdown(); // Update main UI dropdown
+                    } catch (error) {
+                        alert('Failed to delete sequence. Please try again.');
+                    }
+                }
+            });
+        });
+    }
+
+    // Form management
+    resetSequenceForm() {
+        this.elements.sequenceForm.reset();
+        this.elements.stepsContainer.innerHTML = '';
+        this.addStep(); // Add one initial step
+    }
+
+    populateSequenceForm(sequence) {
+        this.elements.sequenceName.value = sequence.name;
+        
+        // Set send window days
+        const dayCheckboxes = this.elements.sequenceForm.querySelectorAll('input[name="sendDays"]');
+        dayCheckboxes.forEach(checkbox => {
+            checkbox.checked = sequence.sendWindow.days.includes(checkbox.value);
+        });
+        
+        // Set send hours
+        document.getElementById('send-start-hour').value = sequence.sendWindow.startHour;
+        document.getElementById('send-end-hour').value = sequence.sendWindow.endHour;
+        
+        // Clear and populate steps
+        this.elements.stepsContainer.innerHTML = '';
+        sequence.steps.forEach(step => {
+            this.addStep(step);
+        });
+    }
+
+    addStep(stepData = null) {
+        const stepCount = this.elements.stepsContainer.children.length;
+        if (stepCount >= 4) {
+            alert('Maximum of 4 steps allowed per sequence.');
+            return;
+        }
+
+        const stepIndex = stepCount;
+        const stepDiv = document.createElement('div');
+        stepDiv.className = 'step-item';
+        stepDiv.dataset.stepIndex = stepIndex;
+
+        stepDiv.innerHTML = `
+            <div class="step-header">
+                <h4 class="step-title">Step ${stepIndex + 1}</h4>
+                <button type="button" class="step-remove-btn" data-step-index="${stepIndex}">Remove</button>
+            </div>
+            <div class="step-timing">
+                <label>Wait:</label>
+                <input type="number" name="stepDelay" min="1" max="30" value="${stepData?.delay || 1}" required>
+                <select name="stepDelayUnit">
+                    <option value="days" ${stepData?.delayUnit === 'days' ? 'selected' : ''}>business days</option>
+                    <option value="hours" ${stepData?.delayUnit === 'hours' ? 'selected' : ''}>hours</option>
+                </select>
+                <span>after ${stepIndex === 0 ? 'original email' : 'previous step'}</span>
+            </div>
+            <div class="step-variants">
+                <label>Email templates (up to 3 variants):</label>
+                <div class="variants-container" data-step-index="${stepIndex}">
+                    <!-- Variants will be added here -->
+                </div>
+                <button type="button" class="add-variant-btn" data-step-index="${stepIndex}">+ Add variant</button>
+            </div>
+        `;
+
+        this.elements.stepsContainer.appendChild(stepDiv);
+
+        // Add event listener for remove button
+        stepDiv.querySelector('.step-remove-btn').addEventListener('click', () => {
+            this.removeStep(stepIndex);
+        });
+
+        // Add event listener for add variant button
+        stepDiv.querySelector('.add-variant-btn').addEventListener('click', () => {
+            this.addVariant(stepIndex);
+        });
+
+        // Add initial variant or populate from stepData
+        const variantsContainer = stepDiv.querySelector('.variants-container');
+        if (stepData && stepData.variants) {
+            stepData.variants.forEach(variant => {
+                this.addVariant(stepIndex, variant);
+            });
+        } else {
+            this.addVariant(stepIndex); // Add one initial variant
+        }
+    }
+
+    removeStep(stepIndex) {
+        const stepElement = this.elements.stepsContainer.querySelector(`[data-step-index="${stepIndex}"]`);
+        if (stepElement) {
+            stepElement.remove();
+            this.renumberSteps();
+        }
+    }
+
+    renumberSteps() {
+        const steps = this.elements.stepsContainer.querySelectorAll('.step-item');
+        steps.forEach((step, index) => {
+            step.dataset.stepIndex = index;
+            step.querySelector('.step-title').textContent = `Step ${index + 1}`;
+            step.querySelector('.step-remove-btn').dataset.stepIndex = index;
+            step.querySelector('.add-variant-btn').dataset.stepIndex = index;
+            step.querySelector('.variants-container').dataset.stepIndex = index;
+            
+            // Update timing text
+            const timingText = step.querySelector('.step-timing span');
+            timingText.textContent = `after ${index === 0 ? 'original email' : 'previous step'}`;
+        });
+    }
+
+    addVariant(stepIndex, variantText = '') {
+        const variantsContainer = this.elements.stepsContainer.querySelector(`[data-step-index="${stepIndex}"] .variants-container`);
+        const variantCount = variantsContainer.children.length;
+        
+        if (variantCount >= 3) {
+            alert('Maximum of 3 variants allowed per step.');
+            return;
+        }
+
+        const variantDiv = document.createElement('div');
+        variantDiv.className = 'variant-item';
+        variantDiv.innerHTML = `
+            <textarea class="variant-textarea" name="stepVariant" placeholder="Enter email template text..." required>${this.escapeHtml(variantText)}</textarea>
+            <button type="button" class="variant-remove-btn">×</button>
+        `;
+
+        variantDiv.querySelector('.variant-remove-btn').addEventListener('click', () => {
+            variantDiv.remove();
+        });
+
+        variantsContainer.appendChild(variantDiv);
+    }
+
+    async handleSequenceFormSubmit(e) {
+        e.preventDefault();
+        
+        try {
+            const formData = new FormData(this.elements.sequenceForm);
+            const sequence = this.parseSequenceFormData(formData);
+            
+            // Validate sequence
+            if (!this.validateSequence(sequence)) {
+                return;
+            }
+
+            // Save sequence
+            const sequences = await this.loadSequences();
+            
+            if (this.currentEditingSequence) {
+                // Update existing sequence
+                const index = sequences.findIndex(seq => seq.name === this.currentEditingSequence.name);
+                if (index !== -1) {
+                    sequences[index] = sequence;
+                }
+            } else {
+                // Check for duplicate names
+                if (sequences.some(seq => seq.name === sequence.name)) {
+                    alert('A sequence with this name already exists. Please choose a different name.');
+                    return;
+                }
+                // Add new sequence
+                sequences.push(sequence);
+            }
+
+            await this.saveSequences(sequences);
+            this.hideSequenceForm();
+            this.loadSequencesView();
+            // Update main UI dropdown after sequence changes
+            this.updateSequenceDropdown();
+            
+        } catch (error) {
+            console.error('Failed to save sequence:', error);
+            alert('Failed to save sequence. Please try again.');
+        }
+    }
+
+    parseSequenceFormData(formData) {
+        const sequence = {
+            name: formData.get('name').trim(),
+            sendWindow: {
+                days: formData.getAll('sendDays'),
+                startHour: parseInt(formData.get('startHour')),
+                endHour: parseInt(formData.get('endHour'))
+            },
+            steps: []
+        };
+
+        // Parse steps
+        const stepElements = this.elements.stepsContainer.querySelectorAll('.step-item');
+        stepElements.forEach((stepElement, index) => {
+            const delay = parseInt(stepElement.querySelector('input[name="stepDelay"]').value);
+            const delayUnit = stepElement.querySelector('select[name="stepDelayUnit"]').value;
+            const variantTextareas = stepElement.querySelectorAll('textarea[name="stepVariant"]');
+            
+            const variants = Array.from(variantTextareas)
+                .map(textarea => textarea.value.trim())
+                .filter(text => text.length > 0);
+
+            sequence.steps.push({
+                delay,
+                delayUnit,
+                variants
+            });
+        });
+
+        return sequence;
+    }
+
+    validateSequence(sequence) {
+        if (!sequence.name) {
+            alert('Please enter a sequence name.');
+            return false;
+        }
+
+        if (sequence.sendWindow.days.length === 0) {
+            alert('Please select at least one day for sending emails.');
+            return false;
+        }
+
+        if (sequence.sendWindow.startHour >= sequence.sendWindow.endHour) {
+            alert('Start hour must be before end hour.');
+            return false;
+        }
+
+        if (sequence.steps.length === 0) {
+            alert('Please add at least one step to the sequence.');
+            return false;
+        }
+
+        for (let i = 0; i < sequence.steps.length; i++) {
+            const step = sequence.steps[i];
+            if (step.variants.length === 0) {
+                alert(`Step ${i + 1} must have at least one email template.`);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // Utility functions
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    formatSendDays(days) {
+        const dayNames = {
+            monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', 
+            thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun'
+        };
+        
+        if (days.length === 7) return 'all days';
+        if (days.length === 5 && !days.includes('saturday') && !days.includes('sunday')) {
+            return 'weekdays';
+        }
+        
+        return days.map(day => dayNames[day]).join(', ');
+    }
+
+    // ==========================================
+    // ENROLLMENT FUNCTIONALITY
+    // ==========================================
+
+    async updateSequenceDropdown() {
+        try {
+            const sequences = await this.loadSequences();
+            const select = this.elements.sequenceSelect;
+            
+            // Clear existing options except the first placeholder
+            select.innerHTML = '<option value="">Select a sequence...</option>';
+            
+            // Add sequence options
+            sequences.forEach(sequence => {
+                const option = document.createElement('option');
+                option.value = sequence.name;
+                option.textContent = `${sequence.name} (${sequence.steps.length} steps)`;
+                select.appendChild(option);
+            });
+            
+            // Show/hide enrollment section based on available sequences
+            if (sequences.length > 0) {
+                this.elements.enrollmentSection.classList.remove('hidden');
+            } else {
+                this.elements.enrollmentSection.classList.add('hidden');
+            }
+            
+        } catch (error) {
+            console.error('Failed to update sequence dropdown:', error);
+        }
+    }
+
+    updateEnrollButton() {
+        const selectedSequence = this.elements.sequenceSelect.value;
+        const selectedEmails = this.getSelectedEmails();
+        const selectedCount = selectedEmails.length;
+        
+        this.elements.selectedCount.textContent = selectedCount;
+        this.elements.enrollSelectedBtn.disabled = !selectedSequence || selectedCount === 0;
+    }
+
+    getSelectedEmails() {
+        const checkboxes = this.elements.emailsList.querySelectorAll('.email-checkbox:checked');
+        return Array.from(checkboxes).map(checkbox => {
+            const emailItem = checkbox.closest('.email-item');
+            return {
+                id: emailItem.dataset.emailId,
+                subject: emailItem.dataset.emailSubject,
+                to: emailItem.dataset.emailTo,
+                threadId: emailItem.dataset.threadId
+            };
+        });
+    }
+
+    async enrollSelectedEmails() {
+        const selectedSequence = this.elements.sequenceSelect.value;
+        const selectedEmails = this.getSelectedEmails();
+        
+        if (!selectedSequence || selectedEmails.length === 0) {
+            return;
+        }
+
+        try {
+            // Get sequence details
+            const sequences = await this.loadSequences();
+            const sequence = sequences.find(seq => seq.name === selectedSequence);
+            
+            if (!sequence) {
+                alert('Selected sequence not found. Please refresh and try again.');
+                return;
+            }
+
+            // Create enrollment records
+            const enrollments = selectedEmails.map(email => ({
+                id: this.generateEnrollmentId(),
+                emailId: email.id,
+                threadId: email.threadId,
+                subject: email.subject,
+                to: email.to,
+                sequenceName: selectedSequence,
+                sequence: sequence,
+                enrolledAt: new Date().toISOString(),
+                currentStep: 0,
+                status: 'active',
+                nextSendDate: this.calculateNextSendDate(sequence.steps[0], sequence.sendWindow)
+            }));
+
+            // Save enrollments
+            await this.saveEnrollments(enrollments);
+            
+            // Clear selections and update UI
+            this.clearEmailSelections();
+            this.elements.sequenceSelect.value = '';
+            this.updateEnrollButton();
+            
+            // Show success message
+            alert(`Successfully enrolled ${enrollments.length} email${enrollments.length === 1 ? '' : 's'} in "${selectedSequence}" sequence.`);
+            
+        } catch (error) {
+            console.error('Failed to enroll emails:', error);
+            alert('Failed to enroll emails. Please try again.');
+        }
+    }
+
+    async saveEnrollments(enrollments) {
+        try {
+            const result = await chrome.storage.local.get(['emailEnrollments']);
+            const existingEnrollments = result.emailEnrollments || [];
+            
+            const updatedEnrollments = [...existingEnrollments, ...enrollments];
+            await chrome.storage.local.set({ emailEnrollments: updatedEnrollments });
+            
+        } catch (error) {
+            console.error('Failed to save enrollments:', error);
+            throw error;
+        }
+    }
+
+    generateEnrollmentId() {
+        return 'enroll_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    calculateNextSendDate(step, sendWindow) {
+        const now = new Date();
+        let sendDate = new Date(now);
+        
+        // Add delay
+        if (step.delayUnit === 'hours') {
+            sendDate.setHours(sendDate.getHours() + step.delay);
+        } else {
+            // Business days
+            let daysAdded = 0;
+            while (daysAdded < step.delay) {
+                sendDate.setDate(sendDate.getDate() + 1);
+                const dayName = sendDate.toLocaleDateString('en-US', { weekday: 'lowercase' });
+                if (sendWindow.days.includes(dayName)) {
+                    daysAdded++;
+                }
+            }
+        }
+        
+        // Adjust to send window hours
+        if (sendDate.getHours() < sendWindow.startHour) {
+            sendDate.setHours(sendWindow.startHour, 0, 0, 0);
+        } else if (sendDate.getHours() >= sendWindow.endHour) {
+            // Move to next valid day
+            do {
+                sendDate.setDate(sendDate.getDate() + 1);
+            } while (!sendWindow.days.includes(sendDate.toLocaleDateString('en-US', { weekday: 'lowercase' })));
+            sendDate.setHours(sendWindow.startHour, 0, 0, 0);
+        }
+        
+        return sendDate.toISOString();
+    }
+
+    clearEmailSelections() {
+        const checkboxes = this.elements.emailsList.querySelectorAll('.email-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            const emailItem = checkbox.closest('.email-item');
+            emailItem.classList.remove('selected');
+        });
     }
 }
 
