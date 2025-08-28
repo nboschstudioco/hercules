@@ -41,21 +41,26 @@
         
         <!-- Authenticated state -->
         <div id="authenticated" class="authenticated-container hidden">
-            <div class="user-info">
-                <div class="avatar">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Compact authentication row -->
+            <div class="user-status-row">
+                <div class="avatar-compact">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="12" cy="12" r="10" stroke="#4285f4" stroke-width="2" fill="#e8f0fe"/>
                         <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#4285f4"/>
                         <path d="M6 18.5c0-2.5 2.69-4.5 6-4.5s6 2 6 4.5" stroke="#4285f4" stroke-width="2" fill="none"/>
                     </svg>
                 </div>
-                <div class="user-details">
-                    <h3>Welcome back!</h3>
-                    <p id="user-email" class="user-email"></p>
-                </div>
+                <span id="user-email" class="user-email-compact"></span>
+                <span id="status-dot" class="status-dot status-ok" aria-label="Authenticated"></span>
+                <button id="expand-status" class="expand-btn" aria-label="See details">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <polyline points="6,9 12,15 18,9" stroke="#5f6368" stroke-width="2" fill="none"/>
+                    </svg>
+                </button>
             </div>
             
-            <div class="status-info">
+            <!-- Expandable status details (hidden by default) -->
+            <div id="status-details" class="status-details hidden">
                 <div class="status-item">
                     <span class="status-label">Status:</span>
                     <span class="status-value authenticated">✓ Authenticated</span>
@@ -63,6 +68,10 @@
                 <div class="status-item">
                     <span class="status-label">Gmail Access:</span>
                     <span class="status-value enabled">✓ Enabled</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Last Login:</span>
+                    <span id="last-login" class="status-value">Just now</span>
                 </div>
             </div>
             

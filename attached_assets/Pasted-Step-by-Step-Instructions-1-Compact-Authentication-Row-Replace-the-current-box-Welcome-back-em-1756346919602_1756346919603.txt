@@ -1,0 +1,94 @@
+Step-by-Step Instructions
+1. Compact Authentication Row
+Replace the current box (“Welcome back!”, email, status lines) with a single row:
+
+Left: User avatar (icon or letter-circle, e.g., like Gmail).
+
+Center: User’s email address.
+
+Right: Status dot (green for OK, red/yellow for problem).
+
+Remove detailed “Authenticated” and “Gmail Access” text from the default view.
+
+Example markup:
+
+xml
+<div class="user-status-row">
+  <span class="avatar">[SVG or initial]</span>
+  <span class="user-email">nick@boschstudio.co</span>
+  <span class="status-dot status-ok"></span> <!-- green dot if authenticated -->
+  <button id="expand-status" class="expand-btn" aria-label="See details"></button>
+</div>
+2. Status Dot Styling
+Add CSS for dot colors:
+
+css
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-left: 8px;
+}
+.status-ok {
+  background-color: #137333;
+}
+.status-error {
+  background-color: #ea4335;
+}
+.status-warning {
+  background-color: #fbbc05;
+}
+3. Toggle Expanded Status Info
+Add a small chevron, “info,” or “expand” button next to the dot.
+
+Clicking this button expands a block below showing:
+
+Status: Authenticated/Not authenticated.
+
+Gmail API Access: Enabled/Disabled.
+
+Optionally, last login time.
+
+Hide details by default; show on click.
+
+Example JS:
+
+javascript
+document.getElementById('expand-status').addEventListener('click', () => {
+  document.getElementById('status-details').classList.toggle('hidden');
+});
+4. Layout Adjustments
+Move or shrink the “Welcome back!” header if present, or remove if the email is prominent.
+
+Use only one row for user info so emails start at the top and take up more vertical space.
+
+Ensure recent emails list has a max-height and scrolls smoothly:
+
+css
+.recent-emails-list {
+  max-height: 350px;
+  overflow-y: auto;
+}
+5. Accessibility & Responsiveness
+Ensure the status dot has a tooltip or accessible label (e.g., use aria-label="Authenticated" on the dot).
+
+If a user expands for details and logs out, collapse/hide details appropriately.
+
+6. Testing and Acceptance
+On successful auth, display email and green dot only.
+
+On error or missing access, show red/yellow dot.
+
+“See Details” toggles extra info below or in a modal/popup.
+
+Deliverable
+Updated HTML, CSS, and JS for:
+
+Compact authentication/user info row at the top with email, avatar, and status dot.
+
+Expandable status details (hidden by default).
+
+Most vertical space allocated to the email list.
+
+Provide comments and ensure all new classes/IDs are documented.

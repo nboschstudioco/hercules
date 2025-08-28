@@ -14,6 +14,10 @@ class GmailAuthPopup {
             signoutBtn: document.getElementById('signout-btn'),
             retryBtn: document.getElementById('retry-btn'),
             userEmail: document.getElementById('user-email'),
+            statusDot: document.getElementById('status-dot'),
+            expandStatusBtn: document.getElementById('expand-status'),
+            statusDetails: document.getElementById('status-details'),
+            lastLogin: document.getElementById('last-login'),
             errorMessage: document.getElementById('error-message'),
             // Email section elements
             refreshEmailsBtn: document.getElementById('refresh-emails-btn'),
@@ -51,6 +55,7 @@ class GmailAuthPopup {
         this.elements.retryBtn.addEventListener('click', () => this.handleRetry());
         this.elements.refreshEmailsBtn.addEventListener('click', () => this.loadSentEmails());
         this.elements.retryEmailsBtn.addEventListener('click', () => this.loadSentEmails());
+        this.elements.expandStatusBtn.addEventListener('click', () => this.toggleStatusDetails());
     }
 
     showState(state) {
@@ -94,6 +99,8 @@ class GmailAuthPopup {
                 // Check if token is expired
                 if (result.tokenExpiry && Date.now() < result.tokenExpiry) {
                     this.elements.userEmail.textContent = result.userEmail;
+                    this.updateAuthenticationStatus('ok');
+                    this.updateLastLoginTime(result.lastLogin);
                     this.showState('authenticated');
                     // Load sent emails if already authenticated
                     await this.loadSentEmails();
@@ -129,6 +136,8 @@ class GmailAuthPopup {
                     
                     // Update UI
                     this.elements.userEmail.textContent = userInfo.email;
+                    this.updateAuthenticationStatus('ok');
+                    this.updateLastLoginTime();
                     this.showState('authenticated');
                     
                     // Load sent emails after successful authentication
@@ -211,6 +220,10 @@ class GmailAuthPopup {
 
             // Clear stored authentication data
             await chrome.storage.local.remove(['authToken', 'userEmail', 'tokenExpiry', 'lastLogin']);
+            
+            // Collapse status details if expanded
+            this.elements.statusDetails.classList.add('hidden');
+            this.elements.expandStatusBtn.classList.remove('expanded');
 
             // Clear Chrome identity cache
             chrome.identity.clearAllCachedAuthTokens(() => {
@@ -508,17 +521,78 @@ class GmailAuthPopup {
             const message = error.message.toLowerCase();
             
             if (message.includes('403') || message.includes('unauthorized')) {
+                // Update status to show error
+                this.updateAuthenticationStatus('error');
                 return 'Permission denied. Please sign out and sign in again.';
             } else if (message.includes('404')) {
                 return 'Gmail API not accessible. Please check your connection.';
             } else if (message.includes('network') || message.includes('fetch')) {
                 return 'Network error. Please check your internet connection.';
             } else if (message.includes('token')) {
+                // Update status to show warning
+                this.updateAuthenticationStatus('warning');
                 return 'Authentication expired. Please sign in again.';
             }
         }
         
         return 'Failed to load emails. Please try again.';
+    }
+    
+    toggleStatusDetails() {
+        const statusDetails = this.elements.statusDetails;
+        const expandBtn = this.elements.expandStatusBtn;
+        
+        statusDetails.classList.toggle('hidden');
+        expandBtn.classList.toggle('expanded');
+    }
+    
+    updateAuthenticationStatus(status) {
+        const statusDot = this.elements.statusDot;
+        
+        // Remove all status classes
+        statusDot.classList.remove('status-ok', 'status-error', 'status-warning');
+        
+        // Add appropriate status class and update aria-label
+        switch (status) {
+            case 'ok':
+                statusDot.classList.add('status-ok');
+                statusDot.setAttribute('aria-label', 'Authenticated');
+                break;
+            case 'error':
+                statusDot.classList.add('status-error');
+                statusDot.setAttribute('aria-label', 'Authentication Error');
+                break;
+            case 'warning':
+                statusDot.classList.add('status-warning');
+                statusDot.setAttribute('aria-label', 'Authentication Warning');
+                break;
+            default:
+                statusDot.classList.add('status-error');
+                statusDot.setAttribute('aria-label', 'Unknown Status');
+        }
+    }
+    
+    updateLastLoginTime(loginTime) {
+        const lastLoginElement = this.elements.lastLogin;
+        
+        if (loginTime) {
+            const loginDate = new Date(loginTime);
+            const now = new Date();
+            const diffMinutes = Math.floor((now - loginDate) / (1000 * 60));
+            
+            if (diffMinutes < 1) {
+                lastLoginElement.textContent = 'Just now';
+            } else if (diffMinutes < 60) {
+                lastLoginElement.textContent = `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+            } else if (diffMinutes < 1440) { // Less than 24 hours
+                const hours = Math.floor(diffMinutes / 60);
+                lastLoginElement.textContent = `${hours} hour${hours === 1 ? '' : 's'} ago`;
+            } else {
+                lastLoginElement.textContent = loginDate.toLocaleDateString();
+            }
+        } else {
+            lastLoginElement.textContent = 'Just now';
+        }
     }
 }
 
