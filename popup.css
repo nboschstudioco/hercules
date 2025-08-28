@@ -24,30 +24,33 @@ body {
     width: 320px;
     min-height: 450px;
     max-height: 600px;
-    padding: 20px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    gap: 8px;
 }
 
 /* Header styles */
 .header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
     border-bottom: 1px solid #e8eaed;
 }
 
 .header h1 {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 500;
     color: #202124;
 }
 
 .logo {
     flex-shrink: 0;
+    width: 20px;
+    height: 20px;
 }
 
 /* Loading state */
@@ -151,11 +154,12 @@ body {
 .user-status-row {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
+    gap: 8px;
+    padding: 6px 12px;
     background: #f8f9fa;
-    border-radius: 8px;
-    border: 1px solid #e8eaed;
+    border-radius: 6px;
+    border: 1px solid #eee;
+    box-shadow: none;
 }
 
 .avatar-compact {
@@ -164,7 +168,7 @@ body {
 
 .user-email-compact {
     flex-grow: 1;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     color: #202124;
     word-break: break-all;
@@ -172,11 +176,11 @@ body {
 
 /* Status dot styling */
 .status-dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     display: inline-block;
-    margin-left: 8px;
+    margin-left: 4px;
     flex-shrink: 0;
 }
 
@@ -196,10 +200,15 @@ body {
     background: none;
     border: none;
     cursor: pointer;
-    padding: 4px;
+    padding: 2px;
     border-radius: 4px;
     transition: background-color 0.2s ease;
     flex-shrink: 0;
+}
+
+.expand-btn svg {
+    width: 14px;
+    height: 14px;
 }
 
 .expand-btn:hover {
@@ -213,17 +222,18 @@ body {
 /* Expandable status details */
 .status-details {
     background: #ffffff;
-    border: 1px solid #e8eaed;
-    border-radius: 8px;
-    padding: 16px;
-    margin-top: 8px;
+    border: 1px solid #eee;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-top: 4px;
+    box-shadow: none;
 }
 
 .status-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px 0;
+    padding: 3px 0;
 }
 
 .status-item:not(:last-child) {
@@ -231,12 +241,12 @@ body {
 }
 
 .status-label {
-    font-size: 13px;
+    font-size: 12px;
     color: #5f6368;
 }
 
 .status-value {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
 }
 
@@ -247,35 +257,36 @@ body {
 
 /* Email section styles */
 .email-section {
-    margin-top: 12px;
+    margin-top: 8px;
     border-top: 1px solid #e8eaed;
-    padding-top: 16px;
+    padding-top: 8px;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
+    gap: 8px;
 }
 
 .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
 }
 
 .section-header h3 {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 500;
     color: #202124;
     margin: 0;
 }
 
 .refresh-btn {
-    padding: 6px 12px;
+    padding: 4px 8px;
     background: transparent;
     color: #4285f4;
     border: 1px solid #4285f4;
-    border-radius: 16px;
-    font-size: 12px;
+    border-radius: 12px;
+    font-size: 11px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -290,15 +301,15 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    padding: 20px;
+    gap: 8px;
+    padding: 12px;
     color: #5f6368;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .spinner-small {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     border: 2px solid #e8eaed;
     border-top: 2px solid #4285f4;
     border-radius: 50%;
@@ -306,22 +317,31 @@ body {
 }
 
 .emails-list {
-    max-height: 350px;
+    max-height: 70vh;
     overflow-y: auto;
     flex-grow: 1;
+    gap: 4px;
+    display: flex;
+    flex-direction: column;
 }
 
 .email-item {
     display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 12px;
-    border: 1px solid #e8eaed;
-    border-radius: 8px;
-    margin-bottom: 8px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: none;
+    border-bottom: 1px solid #eee;
+    border-radius: 0;
+    margin-bottom: 0;
     background: #ffffff;
     transition: all 0.2s ease;
     cursor: pointer;
+    font-size: 13px;
+}
+
+.email-item:last-child {
+    border-bottom: none;
 }
 
 .email-item:hover {
@@ -335,9 +355,10 @@ body {
 }
 
 .email-checkbox {
-    margin-top: 2px;
+    margin-right: 4px;
     accent-color: #4285f4;
     cursor: pointer;
+    transform: scale(0.9);
 }
 
 .email-content {
@@ -348,65 +369,79 @@ body {
 .email-subject {
     font-weight: 500;
     color: #202124;
-    font-size: 14px;
-    margin-bottom: 4px;
+    font-size: 13px;
+    margin-bottom: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.2;
 }
 
 .email-to {
-    color: #5f6368;
-    font-size: 13px;
-    margin-bottom: 4px;
+    color: #888;
+    font-size: 12px;
+    margin-bottom: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.2;
 }
 
 .email-date {
-    color: #9aa0a6;
-    font-size: 12px;
+    color: #888;
+    font-size: 11px;
     white-space: nowrap;
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
 .emails-empty {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
-    padding: 40px 20px;
+    gap: 8px;
+    padding: 20px;
     text-align: center;
     color: #5f6368;
 }
 
 .emails-empty p {
     margin: 0;
-    font-size: 14px;
+    font-size: 13px;
+}
+
+.emails-empty svg {
+    width: 20px;
+    height: 20px;
 }
 
 .emails-error {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
-    padding: 20px;
+    gap: 8px;
+    padding: 16px;
     text-align: center;
 }
 
 .emails-error p {
     margin: 0;
     color: #ea4335;
-    font-size: 14px;
+    font-size: 13px;
+}
+
+.emails-error svg {
+    width: 20px;
+    height: 20px;
 }
 
 .retry-btn-small {
-    padding: 8px 16px;
+    padding: 6px 12px;
     background: #4285f4;
     color: white;
     border: none;
-    border-radius: 16px;
-    font-size: 12px;
+    border-radius: 12px;
+    font-size: 11px;
     font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s ease;
@@ -417,19 +452,19 @@ body {
 }
 
 .actions {
-    margin-top: 20px;
-    padding-top: 16px;
+    margin-top: 8px;
+    padding-top: 8px;
     border-top: 1px solid #e8eaed;
 }
 
 .signout-btn {
     width: 100%;
-    padding: 10px 24px;
+    padding: 8px 16px;
     background: transparent;
     color: #5f6368;
     border: 1px solid #dadce0;
-    border-radius: 20px;
-    font-size: 14px;
+    border-radius: 16px;
+    font-size: 13px;
     cursor: pointer;
     transition: all 0.2s ease;
 }

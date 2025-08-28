@@ -1,0 +1,87 @@
+1. Reduce Vertical Padding and Margins
+Lower the default .container, card, and email row padding (e.g., 8-12px instead of 20+px).
+
+Shrink vertical gaps between elements; use gap: 8px in flex layouts.
+
+Example:
+
+css
+.container {
+  padding: 12px;
+}
+.user-status-row {
+  padding: 6px 12px;
+}
+.email-row {
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+2. Minimize Font Sizes
+Use 13-14px for body text, 16-18px for titles.
+
+For secondary info (email, time): 12px.
+
+css
+.user-email, .email-row {
+  font-size: 13px;
+}
+.email-time {
+  font-size: 12px;
+}
+3. Condense Card and Box Borders
+Soften border-radius, drop-shadow, and borders:
+
+css
+.email-row, .user-status-row {
+  border-radius: 8px;
+  box-shadow: none;
+  border: 1px solid #eee;
+}
+4. Use Flexbox for Alignment
+Use tight flex layouts to align avatars, text, dots, and actions in a single line.
+
+5. Reduce Icon Sizes
+Shrink SVG icons, dots, and avatars (e.g., 20x20 or 16x16).
+
+6. Make Scroll Area Taller
+Allow email list container to use more of the available vertical space:
+
+css
+.recent-emails-list {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+7. Remove Unnecessary Whitespace
+Trim extra HRs, headers, and vertical dividers.
+
+No Extension Footprint Limitation
+Chrome only enforces the outer window size—not the amount of visible UI, padding, or margins within your popup. You are free to make it as dense as you wish—many productivity extensions use highly compact layouts.
+
+Example: Ultra-Compact Email Row
+css
+.email-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  gap: 8px;
+  font-size: 13px;
+  border-bottom: 1px solid #eee;
+}
+.email-row:last-child {
+  border-bottom: none;
+}
+.email-time {
+  margin-left: auto;
+  font-size: 12px;
+  color: #888;
+}
+.checkbox {
+  margin-right: 8px;
+}
+Recommendation
+Reduce all vertical/horizontal spacing, font sizes, and control sizes to the minimum visually acceptable.
+
+Consider denser information architecture and align items tightly using flexbox.
+
+Test your layout in the popup to ensure scroll usability.
+
