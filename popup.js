@@ -10,9 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
         openSidePanelBtn.addEventListener('click', async () => {
             try {
                 // Open the side panel
-                await chrome.sidePanel.open({
-                    windowId: chrome.windows.WINDOW_ID_CURRENT
-                });
+                await chrome.sidePanel.open();
                 
                 // Close the popup
                 window.close();
