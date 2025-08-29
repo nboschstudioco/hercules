@@ -1,0 +1,45 @@
+Subject:
+Fix OAuth flow: “process is not defined” ReferenceErrors in extension UI
+
+Message:
+
+While running the extension and starting the OAuth flow, I consistently get the error:
+
+text
+ReferenceError: process is not defined
+traced to sidepanel.js (lines 202 and 398), which runs inside the extension’s UI (browser, not Node).
+
+Please address the following in your implementation:
+
+Remove or replace all uses of the Node.js process object in any browser-facing JS:
+
+The browser environment does not have process or process.env.
+
+All OAuth/client IDs, API URLs, or config values must be injected into the browser code as constants, configs, or retrieved from the backend.
+
+If you need environment/deployment variables in the UI, pass them via a generated config JS, not process.env.
+
+Double-check all import/export boundaries:
+
+Separate code intended only for the server (Node.js) and code that will run in the extension or browser (pure JS).
+
+Don’t bundle backend utils, config files, or dependencies into UI/extension scripts.
+
+Config Injection Pattern:
+
+For frontend/env config, use a small script or JSON (e.g., config.js with window.APP_CONFIG = { ... }), imported by your extension HTML and built from your env at deploy time.
+
+Retest the OAuth flow strictly in a browser context (not Node or Replit environment):
+
+The extension code must never reference Node.js globals (process, require, __dirname, etc.).
+
+If browser-side code needs secrets/keys, those must come from the backend (never hardcoded).
+
+Acceptance:
+
+After all process references are purged from browser/extension code, the OAuth flow must complete in Chrome, using only browser-compatible JS and config.
+
+The extension’s “Sign in with Google” button must open the OAuth flow and complete authentication without JS errors in the console.
+
+Please audit the codebase accordingly and clearly separate backend-only (Node) logic from browser/extension JS. All config/environment variables required by the UI must be provided using a browser-safe method.
+

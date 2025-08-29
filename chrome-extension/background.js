@@ -89,9 +89,10 @@ async function checkAndRefreshAuth() {
 
 /**
  * Helper function to get backend URL
+ * Service workers don't have access to window, so use direct constant
  */
 function getBackendUrl() {
-    return process.env.BACKEND_URL || 'http://localhost:3000';
+    return 'http://localhost:3000';
 }
 
 /**

@@ -363,8 +363,8 @@ class GmailFollowUpApp {
     }
     
     getBackendUrl() {
-        // Use environment variable or default to localhost for development
-        return process.env.BACKEND_URL || 'http://localhost:3000';
+        // Use browser-safe configuration
+        return window.APP_CONFIG?.BACKEND_URL || 'http://localhost:3000';
     }
     
     async startWebOAuthFlow() {
