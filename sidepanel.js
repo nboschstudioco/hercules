@@ -195,10 +195,38 @@ class GmailFollowUpApp {
             this.elements.signinBtn.disabled = true;
             this.elements.signinBtn.textContent = 'Signing in...';
             
-            const token = await this.getAuthToken();
+            // Force fresh token fetch with interactive mode
+            const token = await this.getAuthToken(true);
             
             if (token) {
-                const userInfo = await this.getUserInfo(token);
+                let userInfo;
+                let retryCount = 0;
+                const maxRetries = 2;
+                
+                // Retry logic for getUserInfo
+                while (retryCount <= maxRetries) {
+                    try {
+                        userInfo = await this.getUserInfo(token);
+                        if (userInfo && userInfo.email) {
+                            break; // Success
+                        }
+                    } catch (userInfoError) {
+                        console.warn(`getUserInfo attempt ${retryCount + 1} failed:`, userInfoError);
+                        if (retryCount === maxRetries) {
+                            throw new Error(`Failed to get user info after ${maxRetries + 1} attempts: ${userInfoError.message}`);
+                        }
+                        retryCount++;
+                        
+                        // If first attempt failed, try refreshing the token
+                        if (retryCount === 1) {
+                            chrome.identity.removeCachedAuthToken({ token: token }, () => {
+                                console.log('Removed cached token, will retry with fresh token');
+                            });
+                        }
+                        
+                        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                    }
+                }
                 
                 if (userInfo && userInfo.email) {
                     await this.storeAuthData(token, userInfo.email);
@@ -209,12 +237,14 @@ class GmailFollowUpApp {
                     this.showState('main');
                     this.showTab('emails');
                 } else {
-                    throw new Error('Failed to retrieve user information');
+                    throw new Error('Failed to get user information after all retries');
                 }
+            } else {
+                throw new Error('Failed to get authentication token');
             }
         } catch (error) {
             console.error('Sign-in error:', error);
-            this.showError(this.getErrorMessage(error));
+            this.showError(`Sign-in error: ${error.message}. Please try again or check your internet connection.`);
         } finally {
             this.elements.signinBtn.disabled = false;
             this.elements.signinBtn.innerHTML = `
@@ -233,6 +263,11 @@ class GmailFollowUpApp {
         try {
             const result = await chrome.storage.local.get(['authToken']);
             if (result.authToken) {
+                // Remove cached token to prevent reuse
+                chrome.identity.removeCachedAuthToken({ token: result.authToken }, () => {
+                    console.log('Cached auth token removed on sign-out');
+                });
+                
                 await this.revokeToken(result.authToken);
             }
             
@@ -256,9 +291,22 @@ class GmailFollowUpApp {
         await this.checkAuthStatus();
     }
 
-    async getAuthToken() {
+    async getAuthToken(forceRefresh = false) {
         return new Promise((resolve, reject) => {
-            chrome.identity.getAuthToken({ interactive: true }, (token) => {
+            const options = { interactive: true };
+            
+            // Force fresh token if requested
+            if (forceRefresh) {
+                chrome.storage.local.get(['authToken'], (result) => {
+                    if (result.authToken) {
+                        chrome.identity.removeCachedAuthToken({ token: result.authToken }, () => {
+                            console.log('Forced removal of cached token for fresh fetch');
+                        });
+                    }
+                });
+            }
+            
+            chrome.identity.getAuthToken(options, (token) => {
                 if (chrome.runtime.lastError) {
                     reject(new Error(chrome.runtime.lastError.message));
                 } else {
@@ -269,15 +317,30 @@ class GmailFollowUpApp {
     }
 
     async getUserInfo(token) {
-        const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to get user info');
+        try {
+            const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText || 'Failed to get user info'}`);
+            }
+            
+            const userInfo = await response.json();
+            
+            if (!userInfo || !userInfo.email) {
+                throw new Error('User info response missing required email field');
+            }
+            
+            return userInfo;
+        } catch (fetchError) {
+            console.error('getUserInfo fetch error:', fetchError);
+            throw new Error(`Failed to get user info: ${fetchError.message}`);
         }
-        
-        return await response.json();
     }
 
     async verifyToken(token) {

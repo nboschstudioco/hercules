@@ -162,10 +162,17 @@ async function getUserInfo(token) {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText || 'Failed to get user info'}`);
         }
 
-        return await response.json();
+        const userInfo = await response.json();
+        
+        if (!userInfo || !userInfo.email) {
+            throw new Error('User info response missing required email field');
+        }
+
+        return userInfo;
     } catch (error) {
         console.error('Error fetching user info:', error);
         throw error;
