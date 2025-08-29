@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Error - Gmail Follow-Up</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            margin: 0;
+            padding: 40px 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .error-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
+            background: #f44336;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .error-icon svg {
+            width: 32px;
+            height: 32px;
+            fill: white;
+        }
+        
+        h1 {
+            color: #333;
+            margin: 0 0 10px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        p {
+            color: #666;
+            margin: 0 0 20px;
+            line-height: 1.5;
+        }
+        
+        .error-details {
+            background: #ffebee;
+            border: 1px solid #ffcdd2;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #c62828;
+            font-size: 14px;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        .retry-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .retry-button:hover {
+            background: #5a6fd8;
+        }
+        
+        .close-button {
+            background: #f5f5f5;
+            color: #666;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .close-button:hover {
+            background: #eeeeee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-icon">
+            <svg viewBox="0 0 24 24">
+                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+        </div>
+        
+        <h1>Authentication Failed</h1>
+        <p>There was a problem connecting your Gmail account. Please try again.</p>
+        
+        <div class="error-details" id="errorDetails">
+            Unknown error occurred
+        </div>
+        
+        <div class="actions">
+            <button class="retry-button" onclick="retryAuth()">
+                Try Again
+            </button>
+            <button class="close-button" onclick="window.close()">
+                Close Tab
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Extract error from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get('error');
+        
+        const errorMessages = {
+            'access_denied': 'You denied permission to access your Gmail account. Please grant permission to use the follow-up features.',
+            'invalid_state': 'Security verification failed. Please try again.',
+            'callback_failed': 'Authentication callback failed. Please check your internet connection and try again.',
+            'invalid_request': 'The authentication request was invalid. Please try again.',
+            'server_error': 'Server error occurred during authentication. Please try again later.'
+        };
+        
+        const errorMessage = errorMessages[error] || `Authentication error: ${error || 'Unknown error'}`;
+        document.getElementById('errorDetails').textContent = errorMessage;
+        
+        function retryAuth() {
+            // Send retry message to extension if available
+            if (window.chrome && chrome.runtime) {
+                try {
+                    chrome.runtime.sendMessage({
+                        type: 'AUTH_RETRY'
+                    });
+                } catch (e) {
+                    console.error('Failed to send retry message to extension:', e);
+                }
+            }
+            
+            // Close the current tab
+            window.close();
+        }
+        
+        // Send error message to extension
+        if (window.chrome && chrome.runtime) {
+            try {
+                chrome.runtime.sendMessage({
+                    type: 'AUTH_ERROR',
+                    error: error,
+                    message: errorMessage
+                });
+            } catch (e) {
+                console.error('Failed to send error message to extension:', e);
+            }
+        }
+    </script>
+</body>
+</html>

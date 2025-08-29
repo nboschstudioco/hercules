@@ -71,17 +71,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
  */
 async function checkAndRefreshAuth() {
     try {
-        const result = await chrome.storage.local.get(['authToken', 'tokenExpiry', 'userEmail']);
+        const result = await chrome.storage.local.get(['sessionToken', 'userEmail']);
         
-        if (result.authToken && result.tokenExpiry) {
-            const timeUntilExpiry = result.tokenExpiry - Date.now();
+        if (result.sessionToken) {
+            // Check auth status with backend
+            const isValid = await verifySessionToken(result.sessionToken);
             
-            // If token expires within 5 minutes, try to refresh
-            if (timeUntilExpiry < 5 * 60 * 1000 && timeUntilExpiry > 0) {
-                console.log('Token expires soon, attempting refresh');
-                await refreshAuthToken();
-            } else if (timeUntilExpiry <= 0) {
-                console.log('Token expired, clearing auth data');
+            if (!isValid) {
+                console.log('Session token invalid, clearing auth data');
                 await clearAuthData();
             }
         }
@@ -91,42 +88,64 @@ async function checkAndRefreshAuth() {
 }
 
 /**
+ * Helper function to get backend URL
+ */
+function getBackendUrl() {
+    return process.env.BACKEND_URL || 'http://localhost:3000';
+}
+
+/**
+ * Verify session token with backend
+ */
+async function verifySessionToken(sessionToken) {
+    try {
+        const response = await fetch(`${getBackendUrl()}/auth/status`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${sessionToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            return false;
+        }
+        
+        const data = await response.json();
+        return data.success && data.authenticated;
+        
+    } catch (error) {
+        console.error('Error verifying session token:', error);
+        return false;
+    }
+}
+
+/**
  * Refresh authentication token
  */
 async function refreshAuthToken() {
     try {
-        // Clear the cached token first
-        const result = await chrome.storage.local.get(['authToken']);
-        if (result.authToken) {
-            chrome.identity.removeCachedAuthToken({ token: result.authToken }, () => {
-                console.log('Cached token removed');
-            });
+        const result = await chrome.storage.local.get(['sessionToken']);
+        
+        if (!result.sessionToken) {
+            throw new Error('No session token found');
         }
         
-        // Get a new token
-        const token = await getNewAuthToken();
-        
-        if (token) {
-            // Get fresh user info
-            const userInfo = await getUserInfo(token);
-            
-            if (userInfo && userInfo.email) {
-                // Store the new token
-                const tokenExpiry = Date.now() + (60 * 60 * 1000); // 1 hour
-                
-                await chrome.storage.local.set({
-                    authToken: token,
-                    userEmail: userInfo.email,
-                    tokenExpiry: tokenExpiry,
-                    lastRefresh: Date.now()
-                });
-                
-                console.log('Token refreshed successfully');
-                return { success: true };
+        // Refresh token with backend
+        const response = await fetch(`${getBackendUrl()}/auth/refresh`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${result.sessionToken}`,
+                'Content-Type': 'application/json'
             }
-        }
+        });
         
-        throw new Error('Failed to refresh token');
+        if (response.ok) {
+            console.log('Token refreshed successfully');
+            return { success: true };
+        } else {
+            throw new Error('Failed to refresh token');
+        }
     } catch (error) {
         console.error('Token refresh failed:', error);
         await clearAuthData();
@@ -137,16 +156,37 @@ async function refreshAuthToken() {
 /**
  * Get new authentication token
  */
-function getNewAuthToken() {
-    return new Promise((resolve, reject) => {
-        chrome.identity.getAuthToken({ interactive: false }, (token) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-            } else {
-                resolve(token);
+async function getGmailToken() {
+    try {
+        const result = await chrome.storage.local.get(['sessionToken']);
+        if (!result.sessionToken) {
+            throw new Error('No session token found');
+        }
+        
+        const response = await fetch(`${getBackendUrl()}/user/gmail-token`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${result.sessionToken}`,
+                'Content-Type': 'application/json'
             }
         });
-    });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            if (response.status === 401 && errorData.requiresReauth) {
+                await clearAuthData();
+                throw new Error('Session expired');
+            }
+            throw new Error(errorData.error || 'Failed to get Gmail token');
+        }
+        
+        const data = await response.json();
+        return data.accessToken;
+        
+    } catch (error) {
+        console.error('Error getting Gmail token:', error);
+        throw error;
+    }
 }
 
 /**
@@ -185,11 +225,10 @@ async function getUserInfo(token) {
 async function clearAuthData() {
     try {
         await chrome.storage.local.remove([
-            'authToken', 
+            'sessionToken', 
             'userEmail', 
-            'tokenExpiry', 
-            'lastLogin', 
-            'lastRefresh'
+            'userData', 
+            'lastLogin'
         ]);
         
         chrome.identity.clearAllCachedAuthTokens(() => {
@@ -435,8 +474,8 @@ async function selectVariantRoundRobin(sequenceName, stepIndex, variants) {
  */
 async function sendFollowUpInBackground(enrollment, stepIndex) {
     try {
-        const result = await chrome.storage.local.get(['authToken', 'userEmail']);
-        if (!result.authToken) return false;
+        const result = await chrome.storage.local.get(['userEmail']);
+        const gmailToken = await getGmailToken();
 
         const step = enrollment.sequence.steps[stepIndex];
         
@@ -471,7 +510,7 @@ async function sendFollowUpInBackground(enrollment, stepIndex) {
             {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${result.authToken}`,
+                    'Authorization': `Bearer ${gmailToken}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
