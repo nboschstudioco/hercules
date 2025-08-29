@@ -1,3 +1,6 @@
+/* Google Fonts - Libre Baskerville */
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400&display=swap');
+
 :root {
   --color-amaranth-red: #D2222D;
   --color-amber: #FFBF00;
@@ -54,9 +57,10 @@ body {
 }
 
 .logo-section h1 {
+    font-family: 'Libre Baskerville', Baskerville, Georgia, serif;
     font-size: 18px;
-    font-weight: 600;
-    color: var(--color-amaranth-red);
+    font-weight: 400;
+    color: var(--color-black-olive);
     margin: 0;
 }
 

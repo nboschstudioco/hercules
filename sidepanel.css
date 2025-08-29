@@ -1,5 +1,5 @@
 /* Google Fonts - Libre Baskerville */
-@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400&display=swap');
 
 :root {
   --color-amaranth-red: #D2222D;
@@ -62,7 +62,7 @@ body {
 .header h1 {
     font-family: 'Libre Baskerville', Baskerville, Georgia, serif;
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--color-black-olive);
     margin: 0;
 }
@@ -124,7 +124,7 @@ body {
 .signin-content h2 {
     font-family: 'Libre Baskerville', Baskerville, Georgia, serif;
     font-size: 24px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--color-black-olive);
     margin-bottom: 12px;
 }
@@ -303,7 +303,7 @@ body {
 .section-header h3 {
     font-family: 'Libre Baskerville', Baskerville, Georgia, serif;
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--color-black-olive);
     margin: 0;
 }
@@ -706,7 +706,7 @@ body {
 .error-state h4 {
     font-family: 'Libre Baskerville', Baskerville, Georgia, serif;
     font-size: 16px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--color-black-olive);
     margin: 0 0 8px 0;
 }
@@ -781,7 +781,7 @@ body {
 .modal-header h3 {
     font-family: 'Libre Baskerville', Baskerville, Georgia, serif;
     font-size: 18px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--color-black-olive);
     margin: 0;
 }
@@ -1104,7 +1104,7 @@ body {
 .error-content h3 {
     font-family: 'Libre Baskerville', Baskerville, Georgia, serif;
     font-size: 18px;
-    font-weight: 700;
+    font-weight: 400;
     color: var(--color-black-olive);
     margin: 16px 0 8px 0;
 }
