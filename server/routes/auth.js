@@ -279,6 +279,159 @@ router.post('/logout', authenticateToken, async (req, res) => {
 });
 
 /**
+ * Handle successful OAuth completion 
+ * This page communicates back to the Chrome extension
+ */
+router.get('/success', (req, res) => {
+    const { token, user } = req.query;
+    
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Authentication Successful</title>
+        <style>
+            body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                display: flex; 
+                justify-content: center; 
+                align-items: center; 
+                height: 100vh; 
+                margin: 0;
+                background-color: #f5f5f5;
+            }
+            .success-container {
+                text-align: center;
+                background: white;
+                padding: 2rem;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                max-width: 400px;
+            }
+            .checkmark {
+                color: #4CAF50;
+                font-size: 3rem;
+                margin-bottom: 1rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="success-container">
+            <div class="checkmark">✓</div>
+            <h2>Authentication Successful!</h2>
+            <p>You can now close this tab and return to your extension.</p>
+        </div>
+        <script>
+            // Send success message to Chrome extension
+            if (window.chrome && chrome.runtime) {
+                try {
+                    chrome.runtime.sendMessage({
+                        type: 'AUTH_SUCCESS',
+                        token: '${token}',
+                        user: ${user ? `JSON.parse(decodeURIComponent('${user}'))` : 'null'}
+                    });
+                } catch (error) {
+                    console.log('Could not send message to extension:', error);
+                }
+            }
+            
+            // Alternative: Try to communicate with parent extension
+            window.postMessage({
+                type: 'AUTH_SUCCESS',
+                token: '${token}',
+                user: ${user ? `JSON.parse(decodeURIComponent('${user}'))` : 'null'}
+            }, '*');
+            
+            // Close tab after a delay
+            setTimeout(() => {
+                window.close();
+            }, 2000);
+        </script>
+    </body>
+    </html>
+    `;
+    
+    res.send(html);
+});
+
+/**
+ * Handle OAuth errors
+ * This page communicates back to the Chrome extension
+ */
+router.get('/error', (req, res) => {
+    const { error } = req.query;
+    
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Authentication Error</title>
+        <style>
+            body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                display: flex; 
+                justify-content: center; 
+                align-items: center; 
+                height: 100vh; 
+                margin: 0;
+                background-color: #f5f5f5;
+            }
+            .error-container {
+                text-align: center;
+                background: white;
+                padding: 2rem;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                max-width: 400px;
+            }
+            .error-mark {
+                color: #f44336;
+                font-size: 3rem;
+                margin-bottom: 1rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="error-container">
+            <div class="error-mark">✗</div>
+            <h2>Authentication Failed</h2>
+            <p>There was an error during authentication: ${error || 'Unknown error'}</p>
+            <p>Please close this tab and try again.</p>
+        </div>
+        <script>
+            // Send error message to Chrome extension
+            if (window.chrome && chrome.runtime) {
+                try {
+                    chrome.runtime.sendMessage({
+                        type: 'AUTH_ERROR',
+                        error: '${error || 'unknown_error'}',
+                        message: 'Authentication failed'
+                    });
+                } catch (error) {
+                    console.log('Could not send message to extension:', error);
+                }
+            }
+            
+            // Alternative: Try to communicate with parent extension
+            window.postMessage({
+                type: 'AUTH_ERROR',
+                error: '${error || 'unknown_error'}',
+                message: 'Authentication failed'
+            }, '*');
+            
+            // Close tab after a delay
+            setTimeout(() => {
+                window.close();
+            }, 3000);
+        </script>
+    </body>
+    </html>
+    `;
+    
+    res.send(html);
+});
+
+/**
  * Middleware to authenticate JWT tokens
  */
 function authenticateToken(req, res, next) {
