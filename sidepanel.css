@@ -229,7 +229,7 @@ body {
     background: var(--color-silver-gray);
 }
 
-/* Navigation tabs */
+/* Navigation tabs - Brand Colors: Steel Gray inactive, Black Olive active */
 .nav-tabs {
     display: flex;
     background: var(--color-pure-white);
@@ -246,7 +246,7 @@ body {
     padding: 12px 8px;
     background: transparent;
     border: none;
-    color: var(--color-steel-gray);
+    color: var(--color-steel-gray); /* Brand: Steel Gray for inactive tabs */
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
@@ -260,8 +260,8 @@ body {
 }
 
 .nav-tab.active {
-    color: var(--color-amaranth-red);
-    border-bottom-color: var(--color-amaranth-red);
+    color: var(--color-black-olive); /* Brand: Black Olive for active tabs */
+    border-bottom-color: var(--color-black-olive); /* Brand: Black Olive indicator */
     background: var(--color-pure-white);
 }
 
@@ -308,15 +308,16 @@ body {
     margin: 0;
 }
 
-/* Active section headers retain highlight color */
+/* Active section headers use active tab color */
 .nav-tab.active + .tab-panel .section-header h3 {
-    color: var(--color-amaranth-red);
+    color: var(--color-black-olive); /* Brand: Black Olive for active sections */
 }
 
+/* Secondary buttons - Brand Color: Yellow background */
 .refresh-btn,
 .add-btn {
-    background: var(--color-amaranth-red);
-    color: var(--color-pure-white);
+    background: var(--color-amber); /* Brand: Yellow for secondary buttons */
+    color: var(--color-black-olive); /* Dark text for contrast */
     border: none;
     padding: 8px 12px;
     border-radius: 6px;
@@ -328,7 +329,7 @@ body {
 
 .refresh-btn:hover,
 .add-btn:hover {
-    background: #B11E28;
+    background: #E6AC00; /* Darker yellow on hover */
 }
 
 /* Content areas */
@@ -472,7 +473,7 @@ body {
 }
 
 .sequence-edit-btn:hover {
-    background: var(--color-amber);
+    background: var(--color-amber); /* Brand: Yellow for secondary actions */
     border-color: var(--color-amber);
     color: var(--color-black-olive);
 }
@@ -595,7 +596,7 @@ body {
 
 .enrollment-pause-btn:hover,
 .enrollment-resume-btn:hover {
-    background: var(--color-amber);
+    background: var(--color-amber); /* Brand: Yellow for secondary actions */
     border-color: var(--color-amber);
     color: var(--color-black-olive);
 }
@@ -624,7 +625,7 @@ body {
 .enrollment-header h4 {
     font-size: 14px;
     font-weight: 600;
-    color: var(--color-amaranth-red);
+    color: var(--color-black-olive); /* Brand: Black Olive for consistency */
     margin: 0;
 }
 
@@ -663,8 +664,9 @@ body {
     border-color: var(--color-amaranth-red);
 }
 
+/* Primary CTA Button - Brand Color: Red for "Enroll in Follow-Up Sequence" */
 .enroll-btn {
-    background: var(--color-amaranth-red);
+    background: var(--color-amaranth-red); /* Brand: Red for main CTA */
     color: var(--color-pure-white);
     border: none;
     padding: 12px 16px;
@@ -719,10 +721,11 @@ body {
     max-width: 300px;
 }
 
+/* General action buttons - Brand Color: Yellow background */
 .primary-btn,
 .retry-btn {
-    background: var(--color-amaranth-red);
-    color: var(--color-pure-white);
+    background: var(--color-amber); /* Brand: Yellow for general actions */
+    color: var(--color-black-olive); /* Dark text for contrast */
     border: none;
     padding: 12px 24px;
     border-radius: 6px;
@@ -734,7 +737,7 @@ body {
 
 .primary-btn:hover,
 .retry-btn:hover {
-    background: #B11E28;
+    background: #E6AC00; /* Darker yellow on hover */
 }
 
 .loading-state {
