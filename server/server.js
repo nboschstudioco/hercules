@@ -4,8 +4,8 @@ const helmet = require('helmet');
 const session = require('express-session');
 require('dotenv').config();
 
-// const authRoutes = require('./routes/auth');
-// const userRoutes = require('./routes/user');
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/user');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -51,14 +51,9 @@ app.get('/health', (req, res) => {
     });
 });
 
-// API routes - commented out for debugging
-// app.use('/auth', authRoutes);
-// app.use('/user', userRoutes);
-
-// Temporary test routes
-app.get('/test', (req, res) => {
-    res.json({ message: 'Server is running!' });
-});
+// API routes
+app.use('/auth', authRoutes);
+app.use('/user', userRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -97,7 +92,7 @@ app.use('*', (req, res) => {
 app.listen(PORT, () => {
     console.log(`🚀 Gmail Follow-Up Backend running on port ${PORT}`);
     console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔐 CORS origins: ${allowedOrigins.join(', ')}`);
+    console.log(`🔐 CORS: All origins allowed (development)`);
 });
 
 // Graceful shutdown
