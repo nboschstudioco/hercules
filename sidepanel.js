@@ -635,10 +635,10 @@ class GmailFollowUpApp {
         this.elements.sequenceModal.classList.remove('hidden');
         
         if (sequence) {
-            this.elements.sequenceModalTitle.textContent = 'Edit Follow-Up Sequence';
+            this.elements.sequenceModalTitle.textContent = 'edit follow-up sequence';
             this.populateSequenceForm(sequence);
         } else {
-            this.elements.sequenceModalTitle.textContent = 'New Follow-Up Sequence';
+            this.elements.sequenceModalTitle.textContent = 'new follow-up sequence';
             this.resetSequenceForm();
             // Set default timezone
             this.elements.sequenceTimezone.value = 'America/New_York';
