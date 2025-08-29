@@ -442,7 +442,7 @@ function calculateNextSendDateInBackground(step, sendWindow) {
         let daysAdded = 0;
         while (daysAdded < step.delay) {
             sendDate.setDate(sendDate.getDate() + 1);
-            const dayName = sendDate.toLocaleDateString('en-US', { weekday: 'lowercase' });
+            const dayName = sendDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
             if (sendWindow.days.includes(dayName)) {
                 daysAdded++;
             }
@@ -454,7 +454,7 @@ function calculateNextSendDateInBackground(step, sendWindow) {
     } else if (sendDate.getHours() >= sendWindow.endHour) {
         do {
             sendDate.setDate(sendDate.getDate() + 1);
-        } while (!sendWindow.days.includes(sendDate.toLocaleDateString('en-US', { weekday: 'lowercase' })));
+        } while (!sendWindow.days.includes(sendDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()));
         sendDate.setHours(sendWindow.startHour, 0, 0, 0);
     }
     
