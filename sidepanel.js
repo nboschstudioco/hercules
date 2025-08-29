@@ -346,7 +346,7 @@ class GmailFollowUpApp {
                 this.elements.emailsEmpty.classList.remove('hidden');
                 this.elements.enrollmentSection.classList.add('hidden');
             } else {
-                this.displayEmails(emails);
+                await this.displayEmails(emails);
                 this.elements.enrollmentSection.classList.remove('hidden');
             }
             
@@ -447,33 +447,84 @@ class GmailFollowUpApp {
         }
     }
 
-    displayEmails(emails) {
-        this.elements.emailsList.innerHTML = emails.map(email => `
-            <div class="email-item" data-email-id="${email.id}" data-thread-id="${email.threadId}" data-subject="${this.escapeHtml(email.subject)}" data-to="${this.escapeHtml(email.to)}" data-original-date="${email.originalDate || ''}">
-                <input type="checkbox" class="email-checkbox" data-email-id="${email.id}">
-                <div class="email-content">
-                    <div class="email-subject">${this.escapeHtml(email.subject)}</div>
-                    <div class="email-to">To: ${this.escapeHtml(email.to)}</div>
-                    <div class="email-date">${email.date}</div>
+    async displayEmails(emails) {
+        // Get current enrollments to check status
+        const enrollments = await this.getEnrollments();
+        
+        this.elements.emailsList.innerHTML = emails.map(email => {
+            const emailEnrollments = enrollments.filter(e => e.emailId === email.id && !['finished'].includes(e.status));
+            const isEnrolled = emailEnrollments.length > 0;
+            const enrollmentInfo = this.getEnrollmentInfo(emailEnrollments);
+            
+            return `
+                <div class="email-item ${isEnrolled ? 'enrolled' : ''}" data-email-id="${email.id}" data-thread-id="${email.threadId}" data-subject="${this.escapeHtml(email.subject)}" data-to="${this.escapeHtml(email.to)}" data-original-date="${email.originalDate || ''}">
+                    <input type="checkbox" class="email-checkbox" data-email-id="${email.id}" ${isEnrolled ? 'disabled' : ''}>
+                    <div class="email-content">
+                        <div class="email-subject">
+                            ${this.escapeHtml(email.subject)}
+                            ${isEnrolled ? `<span class="enrollment-indicator" title="${enrollmentInfo.tooltip}">🔄</span>` : ''}
+                        </div>
+                        <div class="email-to">To: ${this.escapeHtml(email.to)}</div>
+                        <div class="email-date">${email.date}</div>
+                        ${isEnrolled ? `<div class="enrollment-details">${enrollmentInfo.summary}</div>` : ''}
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
         
         // Add event listeners
         this.elements.emailsList.querySelectorAll('.email-item').forEach(item => {
+            const checkbox = item.querySelector('.email-checkbox');
+            const isEnrolled = item.classList.contains('enrolled');
+            
             item.addEventListener('click', (e) => {
-                if (e.target.type !== 'checkbox') {
-                    const checkbox = item.querySelector('.email-checkbox');
+                if (e.target.type !== 'checkbox' && !isEnrolled && !e.target.classList.contains('enrollment-indicator')) {
                     checkbox.checked = !checkbox.checked;
+                    this.updateEmailSelection(item);
                 }
-                this.updateEmailSelection(item);
             });
             
-            const checkbox = item.querySelector('.email-checkbox');
-            checkbox.addEventListener('change', () => {
-                this.updateEmailSelection(item);
-            });
+            if (!isEnrolled) {
+                checkbox.addEventListener('change', () => {
+                    this.updateEmailSelection(item);
+                });
+            }
         });
+    }
+
+    getEnrollmentInfo(enrollments) {
+        if (enrollments.length === 0) {
+            return { summary: '', tooltip: '' };
+        }
+        
+        const sequenceNames = [...new Set(enrollments.map(e => e.sequenceName))];
+        const statuses = enrollments.map(e => {
+            let statusText = e.status;
+            if (e.status === 'paused' && e.statusReason) {
+                statusText = e.statusReason === 'manual' ? 'Paused: Manual' : 'Paused: Reply Detected';
+            } else if (e.status === 'pending') {
+                statusText = 'Pending';
+            } else if (e.status === 'active') {
+                statusText = 'Active';
+            } else if (e.status === 'error') {
+                statusText = 'Error';
+            }
+            return statusText;
+        });
+        
+        const summary = sequenceNames.length === 1 
+            ? `${sequenceNames[0]} (${statuses[0]})`
+            : `${sequenceNames.length} sequences`;
+            
+        const tooltip = enrollments.map(e => {
+            let statusText = e.status;
+            if (e.status === 'paused' && e.statusReason) {
+                statusText = e.statusReason === 'manual' ? 'Paused: Manual' : 'Paused: Reply Detected';
+            }
+            return `${e.sequenceName}: ${statusText}`;
+        }).join('\n');
+        
+        return { summary, tooltip };
     }
 
     updateEmailSelection(emailItem) {

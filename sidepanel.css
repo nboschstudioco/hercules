@@ -353,6 +353,36 @@ body {
     border-color: var(--color-amber);
 }
 
+.email-item.enrolled {
+    background: #fff3e0;
+    border-left: 3px solid #ff9800;
+}
+
+.email-item.enrolled:hover {
+    background: #fff8f0;
+    border-color: #ff9800;
+}
+
+.email-item.enrolled .email-checkbox:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.enrollment-indicator {
+    margin-left: 8px;
+    font-size: 16px;
+    cursor: help;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.enrollment-details {
+    font-size: 12px;
+    color: #ff9800;
+    margin-top: 4px;
+    font-weight: 500;
+}
+
 .email-checkbox {
     margin-top: 2px;
     accent-color: var(--color-amaranth-red);
