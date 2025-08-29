@@ -92,7 +92,7 @@ async function checkAndRefreshAuth() {
  * Service workers don't have access to window, so use direct constant
  */
 function getBackendUrl() {
-    return 'http://localhost:3000';
+    return 'https://6fd81350-6245-48d5-a2d0-9dee2975c9d8-00-2hm7yioywqrpg.kirk.replit.dev';
 }
 
 /**
