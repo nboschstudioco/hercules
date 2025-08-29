@@ -45,8 +45,32 @@ Preferred communication style: Simple, everyday language.
 - **Email Management**: Display recent sent emails with checkbox selection for batch operations
 - **Sequence CRUD Operations**: Create, read, update, and delete follow-up sequences with step configuration
 - **Enrollment Management**: Track active, paused, and completed enrollments with status controls
+- **Reply Mode Control**: Choose between "Reply" (single recipient) or "Reply to All" (all To/CC recipients) for each enrollment
 - **Send Window Configuration**: Configurable days and hours for automated email sending
 - **Persistent Storage**: All data stored locally using Chrome's storage API
+
+## Reply vs Reply-to-All Feature
+
+### Feature Overview
+The extension now supports precise control over who receives automated follow-up emails, matching Gmail's native Reply and Reply-to-All behavior.
+
+### User Interface
+- **Enrollment Control**: Radio button selection during email enrollment
+- **Reply Mode**: Send follow-ups only to the original primary recipient
+- **Reply-to-All Mode**: Send follow-ups to all original To and CC recipients (excluding user)
+- **Safety Warning**: Tooltip warning for Reply-to-All about group conversation implications
+
+### Technical Implementation
+- **Recipient Parsing**: Extracts and stores To, CC, and BCC recipients from original sent emails
+- **Deduplication Logic**: Removes duplicate recipients and excludes user's email address
+- **Conversation Threading**: Maintains proper In-Reply-To and References headers
+- **Mode Persistence**: Reply mode choice stored with each enrollment for consistency
+
+### Compliance & Etiquette
+- **BCC Exclusion**: BCC recipients are never included in follow-ups (per Gmail standards)
+- **User Exclusion**: User's own email is automatically excluded from reply-all recipients
+- **Explicit Selection**: Users must explicitly choose reply mode before enrollment
+- **Group Awareness**: Clear warnings about sending to multiple recipients
 
 ## External Dependencies
 

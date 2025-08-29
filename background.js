@@ -421,21 +421,21 @@ async function selectVariantRoundRobin(sequenceName, stepIndex, variants) {
  * Send follow-up email in background
  */
 /**
- * RECIPIENT HANDLING IN BACKGROUND FOLLOW-UPS:
- * This function sends follow-up emails to ONLY the primary 'To' recipient.
+ * BACKGROUND FOLLOW-UP SENDING WITH REPLY MODE SUPPORT:
+ * This function now supports both Reply and Reply-to-All modes based on enrollment choice.
  * 
- * CURRENT BEHAVIOR:
- * - Sends to: enrollment.to (single recipient from original email's 'To' field)
- * - Does NOT send to: CC, BCC, or multiple 'To' recipients
- * - Each enrollment represents one original email, not individual recipients
+ * REPLY MODE BEHAVIOR:
+ * - 'reply': Sends only to primary 'To' recipient from original email
+ * - 'reply-all': Sends to all To and CC recipients, excluding user's email
  * 
- * COMPLIANCE NOTE:
- * Users should be aware that CC/BCC recipients from original emails
- * will NOT receive automated follow-ups, only the primary 'To' recipient.
+ * FEATURES:
+ * - Respects user's reply mode choice from enrollment
+ * - Proper recipient deduplication and user email exclusion
+ * - Maintains conversation threading with In-Reply-To and References
  */
 async function sendFollowUpInBackground(enrollment, stepIndex) {
     try {
-        const result = await chrome.storage.local.get(['authToken']);
+        const result = await chrome.storage.local.get(['authToken', 'userEmail']);
         if (!result.authToken) return false;
 
         const step = enrollment.sequence.steps[stepIndex];
@@ -448,16 +448,19 @@ async function sendFollowUpInBackground(enrollment, stepIndex) {
         emailBody = emailBody.replace(/\{name\}/g, enrollment.to.split('<')[0].trim());
         emailBody = emailBody.replace(/\{subject\}/g, enrollment.subject);
         
+        // Get recipient list based on reply mode
+        const recipients = getRecipientsForReplyMode(enrollment, result.userEmail);
+        
         // Create the email message
-        // RECIPIENT: Only enrollment.to (primary recipient from original 'To' field)
         const email = [
-            `To: ${enrollment.to}`, // Single recipient only
+            `To: ${recipients.to}`,
+            recipients.cc ? `Cc: ${recipients.cc}` : null,
             `Subject: Re: ${enrollment.subject}`,
             `In-Reply-To: ${enrollment.emailId}`,
             `References: ${enrollment.emailId}`,
             '',
             emailBody
-        ].join('\r\n');
+        ].filter(line => line !== null).join('\r\n');
 
         // Encode the email in base64url format
         const encodedEmail = btoa(email).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -482,6 +485,65 @@ async function sendFollowUpInBackground(enrollment, stepIndex) {
         console.error('Error sending follow-up email in background:', error);
         return false;
     }
+}
+
+/**
+ * Get recipients for follow-up based on reply mode choice (background version)
+ * @param {Object} enrollment - The enrollment record with reply mode
+ * @param {string} userEmail - Current user's email to exclude
+ * @returns {Object} - Recipients object with 'to' and 'cc' fields
+ */
+function getRecipientsForReplyMode(enrollment, userEmail) {
+    const replyMode = enrollment.replyMode || 'reply';
+    
+    if (replyMode === 'reply') {
+        // Reply mode: only send to primary To recipient
+        return {
+            to: enrollment.to,
+            cc: null
+        };
+    } else {
+        // Reply-all mode: send to all To and CC, excluding user
+        const allToRecipients = parseEmailAddresses(enrollment.to);
+        const allCcRecipients = parseEmailAddresses(enrollment.cc || '');
+        
+        // Combine and deduplicate recipients, excluding user's email
+        const combinedRecipients = [...allToRecipients, ...allCcRecipients]
+            .filter(email => email && email.toLowerCase() !== userEmail.toLowerCase())
+            .filter((email, index, array) => array.indexOf(email) === index); // deduplicate
+        
+        // For reply-all, put primary recipient in To and others in CC
+        const primaryRecipient = allToRecipients.find(email => 
+            email && email.toLowerCase() !== userEmail.toLowerCase()
+        );
+        
+        const ccRecipients = combinedRecipients.filter(email => email !== primaryRecipient);
+        
+        return {
+            to: primaryRecipient || combinedRecipients[0] || enrollment.to,
+            cc: ccRecipients.length > 0 ? ccRecipients.join(', ') : null
+        };
+    }
+}
+
+/**
+ * Parse email addresses from a header string (background version)
+ * Handles formats like: "Name <email@domain.com>, email2@domain.com"
+ * @param {string} headerValue - Email header value to parse
+ * @returns {Array} - Array of email addresses
+ */
+function parseEmailAddresses(headerValue) {
+    if (!headerValue) return [];
+    
+    // Split by comma and clean up each address
+    return headerValue
+        .split(',')
+        .map(addr => {
+            // Extract email from "Name <email>" format or use as-is
+            const match = addr.match(/<([^>]+)>/);
+            return match ? match[1].trim() : addr.trim();
+        })
+        .filter(addr => addr && addr.includes('@')); // Basic email validation
 }
 
 /**

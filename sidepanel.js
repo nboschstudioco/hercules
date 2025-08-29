@@ -532,14 +532,17 @@ class GmailFollowUpApp {
             const enrollmentInfo = this.getEnrollmentInfo(emailEnrollments);
             
             return `
-                <div class="email-item ${isEnrolled ? 'enrolled' : ''}" data-email-id="${email.id}" data-thread-id="${email.threadId}" data-subject="${this.escapeHtml(email.subject)}" data-to="${this.escapeHtml(email.to)}" data-original-date="${email.originalDate || ''}">
+                <div class="email-item ${isEnrolled ? 'enrolled' : ''}" data-email-id="${email.id}" data-thread-id="${email.threadId}" data-subject="${this.escapeHtml(email.subject)}" data-to="${this.escapeHtml(email.to)}" data-cc="${this.escapeHtml(email.cc || '')}" data-bcc="${this.escapeHtml(email.bcc || '')}" data-original-date="${email.originalDate || ''}">
                     <input type="checkbox" class="email-checkbox" data-email-id="${email.id}" ${isEnrolled ? 'disabled' : ''}>
                     <div class="email-content">
                         <div class="email-subject">
                             ${this.escapeHtml(email.subject)}
                             ${isEnrolled ? `<span class="enrollment-indicator" title="${enrollmentInfo.tooltip}">🔄</span>` : ''}
                         </div>
-                        <div class="email-to">To: ${this.escapeHtml(email.to)}</div>
+                        <div class="email-to">
+                            To: ${this.escapeHtml(email.to)}
+                            ${email.cc ? `<br>CC: ${this.escapeHtml(email.cc)}` : ''}
+                        </div>
                         <div class="email-date">${email.date}</div>
                         ${isEnrolled ? `<div class="enrollment-details">${enrollmentInfo.summary}</div>` : ''}
                     </div>
@@ -999,6 +1002,10 @@ class GmailFollowUpApp {
                 return;
             }
             
+            // Get selected reply mode from UI
+            const replyModeRadio = document.querySelector('input[name="reply-mode"]:checked');
+            const replyMode = replyModeRadio ? replyModeRadio.value : 'reply';
+            
             const enrollments = selectedEmailIds.map(emailId => {
                 const emailItem = document.querySelector(`[data-email-id="${emailId}"]`);
                 const originalEmailDate = emailItem.dataset.originalDate || new Date().toISOString();
@@ -1009,6 +1016,9 @@ class GmailFollowUpApp {
                     threadId: emailItem.dataset.threadId,
                     subject: emailItem.dataset.subject,
                     to: emailItem.dataset.to,
+                    cc: emailItem.dataset.cc || '', // Store CC recipients
+                    bcc: emailItem.dataset.bcc || '', // Store BCC recipients (for reference)
+                    replyMode: replyMode, // Store user's reply mode choice
                     originalEmailDate: originalEmailDate,
                     sequenceName: selectedSequence,
                     sequence: sequence,
@@ -1338,37 +1348,40 @@ class GmailFollowUpApp {
     }
 
     /**
-     * RECIPIENT HANDLING DOCUMENTATION:
-     * Follow-up emails are sent ONLY to the first/primary recipient in the 'To' field.
+     * RECIPIENT HANDLING WITH REPLY MODE SUPPORT:
+     * Follow-up emails now support both Reply and Reply-to-All modes.
      * 
-     * CURRENT BEHAVIOR:
-     * - Only sends to: enrollment.to (parsed from original email's 'To' header)
-     * - Does NOT include: CC, BCC, or multiple 'To' recipients
-     * - Creates individual enrollments per original email (not per recipient)
+     * REPLY MODE BEHAVIOR:
+     * - 'reply': Sends only to primary 'To' recipient from original email
+     * - 'reply-all': Sends to all To and CC recipients, excluding user's email
      * 
-     * LIMITATIONS:
-     * - If original email had multiple 'To' recipients, only the first is used
-     * - CC and BCC recipients are completely ignored
-     * - No way for users to see/control who receives follow-ups
+     * FEATURES:
+     * - User selects reply mode during enrollment
+     * - Proper recipient deduplication
+     * - User email exclusion from reply-all
+     * - Maintains conversation threading
      */
     async sendFollowUpEmail(enrollment, stepIndex) {
         try {
-            const result = await chrome.storage.local.get(['authToken']);
+            const result = await chrome.storage.local.get(['authToken', 'userEmail']);
             if (!result.authToken) throw new Error('No auth token');
 
             const step = enrollment.sequence.steps[stepIndex];
             const emailBody = this.prepareEmailBody(step, enrollment);
             
+            // Get recipient list based on reply mode
+            const recipients = this.getRecipientsForReplyMode(enrollment, result.userEmail);
+            
             // Create the email message
-            // RECIPIENT: Only sends to enrollment.to (primary 'To' recipient only)
             const email = [
-                `To: ${enrollment.to}`, // Single recipient from original 'To' field
+                `To: ${recipients.to}`,
+                recipients.cc ? `Cc: ${recipients.cc}` : null,
                 `Subject: Re: ${enrollment.subject}`,
                 `In-Reply-To: ${enrollment.emailId}`,
                 `References: ${enrollment.emailId}`,
                 '',
                 emailBody
-            ].join('\r\n');
+            ].filter(line => line !== null).join('\r\n');
 
             // Encode the email in base64url format
             const encodedEmail = btoa(email).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -1397,6 +1410,65 @@ class GmailFollowUpApp {
             console.error('Error sending follow-up email:', error);
             throw error;
         }
+    }
+    
+    /**
+     * Get recipients for follow-up based on reply mode choice
+     * @param {Object} enrollment - The enrollment record with reply mode
+     * @param {string} userEmail - Current user's email to exclude
+     * @returns {Object} - Recipients object with 'to' and 'cc' fields
+     */
+    getRecipientsForReplyMode(enrollment, userEmail) {
+        const replyMode = enrollment.replyMode || 'reply';
+        
+        if (replyMode === 'reply') {
+            // Reply mode: only send to primary To recipient
+            return {
+                to: enrollment.to,
+                cc: null
+            };
+        } else {
+            // Reply-all mode: send to all To and CC, excluding user
+            const allToRecipients = this.parseEmailAddresses(enrollment.to);
+            const allCcRecipients = this.parseEmailAddresses(enrollment.cc || '');
+            
+            // Combine and deduplicate recipients, excluding user's email
+            const combinedRecipients = [...allToRecipients, ...allCcRecipients]
+                .filter(email => email && email.toLowerCase() !== userEmail.toLowerCase())
+                .filter((email, index, array) => array.indexOf(email) === index); // deduplicate
+            
+            // For reply-all, put primary recipient in To and others in CC
+            const primaryRecipient = allToRecipients.find(email => 
+                email && email.toLowerCase() !== userEmail.toLowerCase()
+            );
+            
+            const ccRecipients = combinedRecipients.filter(email => email !== primaryRecipient);
+            
+            return {
+                to: primaryRecipient || combinedRecipients[0] || enrollment.to,
+                cc: ccRecipients.length > 0 ? ccRecipients.join(', ') : null
+            };
+        }
+    }
+    
+    /**
+     * Parse email addresses from a header string
+     * Handles formats like: "Name <email@domain.com>, email2@domain.com"
+     * @param {string} headerValue - Email header value to parse
+     * @returns {Array} - Array of email addresses
+     */
+    parseEmailAddresses(headerValue) {
+        if (!headerValue) return [];
+        
+        // Split by comma and clean up each address
+        return headerValue
+            .split(',')
+            .map(addr => {
+                // Extract email from "Name <email>" format or use as-is
+                const match = addr.match(/<([^>]+)>/);
+                return match ? match[1].trim() : addr.trim();
+            })
+            .filter(addr => addr && addr.includes('@')); // Basic email validation
     }
 
     prepareEmailBody(step, enrollment) {

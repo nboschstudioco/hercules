@@ -1,0 +1,68 @@
+Feature Request: “Reply” vs. “Reply to All” Follow-Up Control
+1. UI Enhancement at Enrollment
+In the enrollment UI, add a clear control (e.g., dropdown or radio buttons) labeled:
+
+“How should follow-ups be addressed?”
+
+Option 1: Reply (just the original recipient/sender)
+
+Option 2: Reply to All (To and CC, except your address)
+
+Make sure the user must explicitly select one option before proceeding with enrollment.
+
+2. Data Storage
+For each enrolled email/thread, persist the user’s selection (“reply” or “reply-all”) as part of the enrollment record in extension storage.
+
+3. Parsing of Original Recipients
+When enrolling, parse the original sent message’s headers to extract:
+
+All email addresses in the To: field.
+
+All addresses in the Cc: field.
+
+The user’s own email, so it can be excluded from reply-all.
+
+4. Send Logic for Each Follow-Up
+When the automation sends a follow-up message:
+
+If the option is “Reply”:
+
+Set the To: field to only the thread's primary original recipient (or match Gmail’s own “Reply” behavior).
+
+Do not include the original Cc: addresses.
+
+If the option is “Reply to All”:
+
+Set the To: to all original To: recipients except the user’s account.
+
+Set the Cc: to all original Cc: recipients except the user’s account.
+
+Never include Bcc: in the follow-up (Gmail’s normal reply-all ignores it).
+
+Always preserve In-Reply-To and References to maintain conversational threading.
+
+If a recipient address is found in both To and Cc, only include it once (deduplicate).
+
+5. User Feedback/Etiquette
+In the UI, provide a brief tooltip or info note warning that “Reply to All will send a new message to everyone who was visible on the original To and Cc lists except you.”
+
+6. QA/Edge Cases
+If the sent email only had one recipient, “Reply” and “Reply to All” are functionally identical.
+
+For emails with >1 recipient, ensure addresses are parsed and cleaned using robust logic to handle aliases and names.
+
+Make sure the user’s address is never included in a reply.
+
+7. Persistence and Extensibility
+Store the chosen mode with the enrollment so that resumed or repeated sends honor the original user choice.
+
+Summary Table
+Part	Detail
+UI	“Reply” vs. “Reply to All” upon enrollment (must select)
+Data Storage	Save option per enrollment
+Header Logic	Parse To:, Cc:; exclude current user for all sends
+Sending	Use choice to set message headers each follow-up send
+UX	Tooltip/warning for reply-all privacy implications
+Etiquette	Never include Bcc: in follow-ups, deduplicate recipients
+QA	Robust parsing, duplicates, self-address removal
+Implementing this feature ensures users have precise control over who receives each automated follow-up and match expected Gmail behavior for both Reply and Reply to All.
