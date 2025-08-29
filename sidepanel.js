@@ -1098,13 +1098,27 @@ class GmailFollowUpApp {
             }
         }
         
-        if (sendDate.getHours() < sendWindow.startHour) {
-            sendDate.setHours(sendWindow.startHour, 0, 0, 0);
+        // Apply intra-day timing randomization within send window
+        const randomizeTime = (sendDate.getHours() < sendWindow.startHour || sendDate.getHours() >= sendWindow.endHour);
+        
+        if (sendDate.getHours() < sendWindow.startHour || randomizeTime) {
+            // Randomize within the send window for natural timing
+            const windowStart = sendWindow.startHour;
+            const windowEnd = sendWindow.endHour;
+            const randomHour = windowStart + Math.floor(Math.random() * (windowEnd - windowStart));
+            const randomMinute = Math.floor(Math.random() * 60);
+            sendDate.setHours(randomHour, randomMinute, 0, 0);
         } else if (sendDate.getHours() >= sendWindow.endHour) {
             do {
                 sendDate.setDate(sendDate.getDate() + 1);
             } while (!sendWindow.days.includes(sendDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()));
-            sendDate.setHours(sendWindow.startHour, 0, 0, 0);
+            
+            // Randomize within the next valid send window
+            const windowStart = sendWindow.startHour;
+            const windowEnd = sendWindow.endHour;
+            const randomHour = windowStart + Math.floor(Math.random() * (windowEnd - windowStart));
+            const randomMinute = Math.floor(Math.random() * 60);
+            sendDate.setHours(randomHour, randomMinute, 0, 0);
         }
         
         return sendDate.toISOString();

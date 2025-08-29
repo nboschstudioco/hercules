@@ -380,6 +380,37 @@ async function checkForRepliesInBackground(enrollment) {
 }
 
 /**
+ * Select variant using round-robin cycling
+ * Tracks last used variant index per sequence + step to ensure fair distribution
+ */
+async function selectVariantRoundRobin(sequenceName, stepIndex, variants) {
+    if (!variants || variants.length === 0) {
+        throw new Error('No variants available for step');
+    }
+    
+    if (variants.length === 1) {
+        return variants[0];
+    }
+    
+    // Key for tracking variant usage: sequenceName_stepIndex
+    const trackingKey = `variant_tracking_${sequenceName}_${stepIndex}`;
+    
+    // Get current tracking data
+    const result = await chrome.storage.local.get([trackingKey]);
+    let lastUsedIndex = result[trackingKey] || -1;
+    
+    // Calculate next index (round-robin)
+    const nextIndex = (lastUsedIndex + 1) % variants.length;
+    
+    // Update tracking
+    await chrome.storage.local.set({ [trackingKey]: nextIndex });
+    
+    console.log(`Variant selection for ${sequenceName} step ${stepIndex}: using variant ${nextIndex + 1}/${variants.length}`);
+    
+    return variants[nextIndex];
+}
+
+/**
  * Send follow-up email in background
  */
 async function sendFollowUpInBackground(enrollment, stepIndex) {
@@ -388,7 +419,10 @@ async function sendFollowUpInBackground(enrollment, stepIndex) {
         if (!result.authToken) return false;
 
         const step = enrollment.sequence.steps[stepIndex];
-        let emailBody = step.content;
+        
+        // Select variant using round-robin cycling
+        const selectedVariant = await selectVariantRoundRobin(enrollment.sequenceName, stepIndex, step.variants);
+        let emailBody = selectedVariant;
         
         // Simple variable replacement
         emailBody = emailBody.replace(/\{name\}/g, enrollment.to.split('<')[0].trim());
@@ -449,8 +483,16 @@ function calculateNextSendDateInBackground(step, sendWindow, baseDate = null) {
         }
     }
     
-    if (sendDate.getHours() < sendWindow.startHour) {
-        sendDate.setHours(sendWindow.startHour, 0, 0, 0);
+    // Apply intra-day timing randomization within send window
+    const randomizeTime = (sendDate.getHours() < sendWindow.startHour || sendDate.getHours() >= sendWindow.endHour);
+    
+    if (sendDate.getHours() < sendWindow.startHour || randomizeTime) {
+        // Randomize within the send window for natural timing
+        const windowStart = sendWindow.startHour;
+        const windowEnd = sendWindow.endHour;
+        const randomHour = windowStart + Math.floor(Math.random() * (windowEnd - windowStart));
+        const randomMinute = Math.floor(Math.random() * 60);
+        sendDate.setHours(randomHour, randomMinute, 0, 0);
     } else if (sendDate.getHours() >= sendWindow.endHour) {
         do {
             sendDate.setDate(sendDate.getDate() + 1);
