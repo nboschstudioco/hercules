@@ -236,7 +236,13 @@ class GmailFollowUpApp {
                 await this.revokeToken(result.authToken);
             }
             
-            await chrome.storage.local.clear();
+            // Clear only authentication data, preserve sequences and enrollments
+            await chrome.storage.local.remove([
+                'authToken', 
+                'userEmail', 
+                'tokenExpiry'
+            ]);
+            
             this.isAuthenticated = false;
             this.selectedEmails.clear();
             this.showState('signin');
