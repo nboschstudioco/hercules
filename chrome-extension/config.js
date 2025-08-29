@@ -2,8 +2,8 @@
 // This file provides runtime configuration without Node.js dependencies
 
 window.APP_CONFIG = {
-    // Backend server URL - using Replit public URL
-    BACKEND_URL: 'https://6fd81350-6245-48d5-a2d0-9dee2975c9d8-00-2hm7yioywqrpg.kirk.replit.dev',
+    // Backend server URL - defaults to localhost for development
+    BACKEND_URL: 'http://localhost:3000',
     
     // OAuth configuration
     OAUTH_TIMEOUT: 5 * 60 * 1000, // 5 minutes
