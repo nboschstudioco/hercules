@@ -420,6 +420,19 @@ async function selectVariantRoundRobin(sequenceName, stepIndex, variants) {
 /**
  * Send follow-up email in background
  */
+/**
+ * RECIPIENT HANDLING IN BACKGROUND FOLLOW-UPS:
+ * This function sends follow-up emails to ONLY the primary 'To' recipient.
+ * 
+ * CURRENT BEHAVIOR:
+ * - Sends to: enrollment.to (single recipient from original email's 'To' field)
+ * - Does NOT send to: CC, BCC, or multiple 'To' recipients
+ * - Each enrollment represents one original email, not individual recipients
+ * 
+ * COMPLIANCE NOTE:
+ * Users should be aware that CC/BCC recipients from original emails
+ * will NOT receive automated follow-ups, only the primary 'To' recipient.
+ */
 async function sendFollowUpInBackground(enrollment, stepIndex) {
     try {
         const result = await chrome.storage.local.get(['authToken']);
@@ -436,8 +449,9 @@ async function sendFollowUpInBackground(enrollment, stepIndex) {
         emailBody = emailBody.replace(/\{subject\}/g, enrollment.subject);
         
         // Create the email message
+        // RECIPIENT: Only enrollment.to (primary recipient from original 'To' field)
         const email = [
-            `To: ${enrollment.to}`,
+            `To: ${enrollment.to}`, // Single recipient only
             `Subject: Re: ${enrollment.subject}`,
             `In-Reply-To: ${enrollment.emailId}`,
             `References: ${enrollment.emailId}`,

@@ -456,7 +456,11 @@ class GmailFollowUpApp {
             const headers = detail.payload.headers;
             
             const subject = this.getHeaderValue(headers, 'Subject') || '(No Subject)';
+            // RECIPIENT HANDLING: Currently only extracts 'To' header
+            // CC and BCC recipients are NOT included in follow-up sequences
             const to = this.getHeaderValue(headers, 'To') || '';
+            const cc = this.getHeaderValue(headers, 'Cc') || '';
+            const bcc = this.getHeaderValue(headers, 'Bcc') || '';
             const originalDate = this.getHeaderValue(headers, 'Date');
             const date = this.formatDate(originalDate);
             
@@ -464,7 +468,9 @@ class GmailFollowUpApp {
                 id: msg.id,
                 threadId: msg.threadId,
                 subject,
-                to,
+                to, // Only 'To' recipients will receive follow-ups
+                cc, // CC data captured but not used in follow-ups
+                bcc, // BCC data captured but not used in follow-ups
                 date,
                 originalDate: originalDate // Store the raw date for calculations
             };
@@ -1331,6 +1337,20 @@ class GmailFollowUpApp {
         }
     }
 
+    /**
+     * RECIPIENT HANDLING DOCUMENTATION:
+     * Follow-up emails are sent ONLY to the first/primary recipient in the 'To' field.
+     * 
+     * CURRENT BEHAVIOR:
+     * - Only sends to: enrollment.to (parsed from original email's 'To' header)
+     * - Does NOT include: CC, BCC, or multiple 'To' recipients
+     * - Creates individual enrollments per original email (not per recipient)
+     * 
+     * LIMITATIONS:
+     * - If original email had multiple 'To' recipients, only the first is used
+     * - CC and BCC recipients are completely ignored
+     * - No way for users to see/control who receives follow-ups
+     */
     async sendFollowUpEmail(enrollment, stepIndex) {
         try {
             const result = await chrome.storage.local.get(['authToken']);
@@ -1340,8 +1360,9 @@ class GmailFollowUpApp {
             const emailBody = this.prepareEmailBody(step, enrollment);
             
             // Create the email message
+            // RECIPIENT: Only sends to enrollment.to (primary 'To' recipient only)
             const email = [
-                `To: ${enrollment.to}`,
+                `To: ${enrollment.to}`, // Single recipient from original 'To' field
                 `Subject: Re: ${enrollment.subject}`,
                 `In-Reply-To: ${enrollment.emailId}`,
                 `References: ${enrollment.emailId}`,
