@@ -61,6 +61,7 @@ class GmailFollowUpApp {
             closeSequenceModal: document.getElementById('close-sequence-modal'),
             sequenceForm: document.getElementById('sequence-form'),
             sequenceName: document.getElementById('sequence-name'),
+            sequenceTimezone: document.getElementById('sequence-timezone'),
             stepsContainer: document.getElementById('steps-container'),
             addStepBtn: document.getElementById('add-step-btn'),
             cancelSequenceBtn: document.getElementById('cancel-sequence-btn'),
@@ -387,14 +388,16 @@ class GmailFollowUpApp {
             
             const subject = this.getHeaderValue(headers, 'Subject') || '(No Subject)';
             const to = this.getHeaderValue(headers, 'To') || '';
-            const date = this.formatDate(this.getHeaderValue(headers, 'Date'));
+            const originalDate = this.getHeaderValue(headers, 'Date');
+            const date = this.formatDate(originalDate);
             
             return {
                 id: msg.id,
                 threadId: msg.threadId,
                 subject,
                 to,
-                date
+                date,
+                originalDate: originalDate // Store the raw date for calculations
             };
         });
         
@@ -412,17 +415,32 @@ class GmailFollowUpApp {
             if (!dateString) return '';
             const date = new Date(dateString);
             const now = new Date();
-            const diffTime = now - date;
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            const diffTime = date - now; // Future dates should be positive
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             
-            if (diffDays === 0) {
-                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            } else if (diffDays === 1) {
-                return 'Yesterday';
-            } else if (diffDays < 7) {
-                return `${diffDays} days ago`;
+            if (diffTime > 0) {
+                // Future dates
+                if (diffDays === 0) {
+                    return 'Today';
+                } else if (diffDays === 1) {
+                    return 'Tomorrow';
+                } else if (diffDays < 7) {
+                    return `in ${diffDays} days`;
+                } else {
+                    return date.toLocaleDateString();
+                }
             } else {
-                return date.toLocaleDateString();
+                // Past dates
+                const pastDays = Math.abs(diffDays);
+                if (pastDays === 0) {
+                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                } else if (pastDays === 1) {
+                    return 'Yesterday';
+                } else if (pastDays < 7) {
+                    return `${pastDays} days ago`;
+                } else {
+                    return date.toLocaleDateString();
+                }
             }
         } catch (error) {
             return dateString;
@@ -431,7 +449,7 @@ class GmailFollowUpApp {
 
     displayEmails(emails) {
         this.elements.emailsList.innerHTML = emails.map(email => `
-            <div class="email-item" data-email-id="${email.id}" data-thread-id="${email.threadId}" data-subject="${this.escapeHtml(email.subject)}" data-to="${this.escapeHtml(email.to)}">
+            <div class="email-item" data-email-id="${email.id}" data-thread-id="${email.threadId}" data-subject="${this.escapeHtml(email.subject)}" data-to="${this.escapeHtml(email.to)}" data-original-date="${email.originalDate || ''}">
                 <input type="checkbox" class="email-checkbox" data-email-id="${email.id}">
                 <div class="email-content">
                     <div class="email-subject">${this.escapeHtml(email.subject)}</div>
@@ -525,6 +543,7 @@ class GmailFollowUpApp {
                     <span class="sequence-step-count">${sequence.steps.length} step${sequence.steps.length === 1 ? '' : 's'}</span>
                     • Send on ${this.formatSendDays(sequence.sendWindow.days)}
                     • ${sequence.sendWindow.startHour}:00 - ${sequence.sendWindow.endHour}:00
+                    • ${sequence.timezone || 'America/New_York'}
                 </div>
             </div>
         `).join('');
@@ -570,6 +589,8 @@ class GmailFollowUpApp {
         } else {
             this.elements.sequenceModalTitle.textContent = 'New Follow-Up Sequence';
             this.resetSequenceForm();
+            // Set default timezone
+            this.elements.sequenceTimezone.value = 'America/New_York';
         }
         
         this.elements.sequenceName.focus();
@@ -589,6 +610,7 @@ class GmailFollowUpApp {
 
     populateSequenceForm(sequence) {
         this.elements.sequenceName.value = sequence.name;
+        this.elements.sequenceTimezone.value = sequence.timezone || 'America/New_York';
         
         // Set send window days
         const dayCheckboxes = this.elements.sequenceForm.querySelectorAll('input[name="sendDays"]');
@@ -647,6 +669,7 @@ class GmailFollowUpApp {
     parseSequenceFormData(formData) {
         const sequence = {
             name: formData.get('name').trim(),
+            timezone: formData.get('timezone') || 'America/New_York',
             sendWindow: {
                 days: formData.getAll('sendDays'),
                 startHour: parseInt(formData.get('startHour')),
@@ -852,19 +875,22 @@ class GmailFollowUpApp {
             
             const enrollments = selectedEmailIds.map(emailId => {
                 const emailItem = document.querySelector(`[data-email-id="${emailId}"]`);
+                const originalEmailDate = emailItem.dataset.originalDate || new Date().toISOString();
+                
                 return {
                     id: this.generateEnrollmentId(),
                     emailId: emailId,
                     threadId: emailItem.dataset.threadId,
                     subject: emailItem.dataset.subject,
                     to: emailItem.dataset.to,
+                    originalEmailDate: originalEmailDate,
                     sequenceName: selectedSequence,
                     sequence: sequence,
                     enrolledAt: new Date().toISOString(),
                     currentStep: 0,
                     status: 'pending',
                     statusReason: null,
-                    nextSendDate: this.calculateNextSendDate(sequence.steps[0], sequence.sendWindow),
+                    nextSendDate: this.calculateNextSendDate(sequence.steps[0], sequence.sendWindow, originalEmailDate),
                     lastChecked: null,
                     alarmId: null
                 };
@@ -1013,6 +1039,10 @@ class GmailFollowUpApp {
             enrollment.status = enrollment.currentStep === 0 ? 'pending' : 'active';
             enrollment.statusReason = null;
             
+            // Recalculate next send date from the original email date
+            const step = enrollment.sequence.steps[enrollment.currentStep];
+            enrollment.nextSendDate = this.calculateNextSendDate(step, enrollment.sequence.sendWindow, enrollment.originalEmailDate);
+            
             // Schedule next alarm
             await this.scheduleNextSend(enrollment);
             
@@ -1051,9 +1081,9 @@ class GmailFollowUpApp {
         return 'enroll_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     }
 
-    calculateNextSendDate(step, sendWindow) {
+    calculateNextSendDate(step, sendWindow, baseDate = null) {
         const now = new Date();
-        let sendDate = new Date(now);
+        let sendDate = new Date(baseDate || now);
         
         if (step.delayUnit === 'hours') {
             sendDate.setHours(sendDate.getHours() + step.delay);

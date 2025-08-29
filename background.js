@@ -307,7 +307,7 @@ async function handleFollowUpAlarm(alarm) {
             } else {
                 // Schedule next step
                 const nextStep = enrollment.sequence.steps[enrollment.currentStep];
-                enrollment.nextSendDate = calculateNextSendDateInBackground(nextStep, enrollment.sequence.sendWindow);
+                enrollment.nextSendDate = calculateNextSendDateInBackground(nextStep, enrollment.sequence.sendWindow, enrollment.originalEmailDate);
                 
                 const nextAlarmId = `send_${enrollment.id}_${Date.now()}`;
                 const nextSendTime = new Date(enrollment.nextSendDate);
@@ -432,9 +432,9 @@ async function sendFollowUpInBackground(enrollment, stepIndex) {
 /**
  * Calculate next send date in background
  */
-function calculateNextSendDateInBackground(step, sendWindow) {
+function calculateNextSendDateInBackground(step, sendWindow, baseDate = null) {
     const now = new Date();
-    let sendDate = new Date(now);
+    let sendDate = new Date(baseDate || now);
     
     if (step.delayUnit === 'hours') {
         sendDate.setHours(sendDate.getHours() + step.delay);
