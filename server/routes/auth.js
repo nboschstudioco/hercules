@@ -381,30 +381,26 @@ router.get('/success', (req, res) => {
             <p>You can now close this tab and return to your extension.</p>
         </div>
         <script>
-            // Send success message to Chrome extension
+            // Send success message to Chrome extension background script
             if (window.chrome && chrome.runtime) {
                 try {
                     chrome.runtime.sendMessage({
+                        action: 'AUTH_SUCCESS',
                         type: 'AUTH_SUCCESS',
                         token: '${token}',
                         user: ${user ? `JSON.parse(decodeURIComponent('${user}'))` : 'null'}
+                    }, (response) => {
+                        console.log('Auth success message sent to extension:', response);
                     });
                 } catch (error) {
                     console.log('Could not send message to extension:', error);
                 }
             }
             
-            // Alternative: Try to communicate with parent extension
-            window.postMessage({
-                type: 'AUTH_SUCCESS',
-                token: '${token}',
-                user: ${user ? `JSON.parse(decodeURIComponent('${user}'))` : 'null'}
-            }, '*');
-            
-            // Close tab after a delay
+            // Close tab after a short delay
             setTimeout(() => {
                 window.close();
-            }, 2000);
+            }, 1500);
         </script>
     </body>
     </html>
@@ -458,30 +454,26 @@ router.get('/error', (req, res) => {
             <p>Please close this tab and try again.</p>
         </div>
         <script>
-            // Send error message to Chrome extension
+            // Send error message to Chrome extension background script
             if (window.chrome && chrome.runtime) {
                 try {
                     chrome.runtime.sendMessage({
+                        action: 'AUTH_ERROR',
                         type: 'AUTH_ERROR',
                         error: '${error || 'unknown_error'}',
                         message: 'Authentication failed'
+                    }, (response) => {
+                        console.log('Auth error message sent to extension:', response);
                     });
                 } catch (error) {
                     console.log('Could not send message to extension:', error);
                 }
             }
             
-            // Alternative: Try to communicate with parent extension
-            window.postMessage({
-                type: 'AUTH_ERROR',
-                error: '${error || 'unknown_error'}',
-                message: 'Authentication failed'
-            }, '*');
-            
             // Close tab after a delay
             setTimeout(() => {
                 window.close();
-            }, 3000);
+            }, 2500);
         </script>
     </body>
     </html>

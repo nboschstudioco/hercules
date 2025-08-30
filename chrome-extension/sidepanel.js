@@ -196,52 +196,102 @@ class GmailFollowUpApp {
             this.elements.signinBtn.disabled = true;
             this.elements.signinBtn.textContent = 'Signing in...';
             
+            // Clear any previous auth results
+            await chrome.storage.local.remove(['authResult']);
+            
             // Get OAuth details from backend
             const authDetails = await apiClient.startAuth();
             
-            // Use Chrome Identity API for OAuth
-            const result = await chrome.identity.launchWebAuthFlow({
-                url: authDetails.authUrl,
-                interactive: true
-            });
-
-            if (result) {
-                // Extract auth code from callback URL
-                const url = new URL(result);
-                const authCode = url.searchParams.get('code');
+            // Open OAuth popup
+            const popup = window.open(
+                authDetails.authUrl,
+                'oauth_popup',
+                'width=500,height=600,scrollbars=yes,resizable=yes'
+            );
+            
+            // Check if popup was blocked
+            if (!popup) {
+                throw new Error('Popup blocked. Please allow popups and try again.');
+            }
+            
+            // Poll for auth result from background script
+            const authResult = await this.waitForAuthResult(popup);
+            
+            if (authResult.success) {
+                // Store session token and complete authentication
+                await apiClient.setSessionToken(authResult.token);
                 
-                if (authCode) {
-                    // Exchange code for session token via backend
-                    const tokenResponse = await fetch(`${apiClient.getBackendUrl()}/auth/google/callback`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ code: authCode })
-                    });
-                    
-                    if (tokenResponse.ok) {
-                        const tokenData = await tokenResponse.json();
-                        await apiClient.setSessionToken(tokenData.sessionToken);
-                        
-                        this.isAuthenticated = true;
-                        this.elements.userEmail.textContent = tokenData.user.email;
-                        this.updateAuthenticationStatus('ok');
-                        this.showState('main-app');
-                        this.showTab('emails');
-                        this.resetSignInButton();
-                    } else {
-                        throw new Error('Authentication failed');
-                    }
-                } else {
-                    throw new Error('No authorization code received');
-                }
+                this.isAuthenticated = true;
+                this.elements.userEmail.textContent = authResult.user.email;
+                this.updateAuthenticationStatus('ok');
+                this.showState('main-app');
+                this.showTab('emails');
+                this.resetSignInButton();
             } else {
-                throw new Error('Authentication cancelled');
+                throw new Error(authResult.message || authResult.error || 'Authentication failed');
             }
             
         } catch (error) {
             console.error('Sign-in error:', error);
             this.showError(`Sign-in error: ${error.message}. Please try again or check your internet connection.`);
             this.resetSignInButton();
+        }
+    }
+    
+    async waitForAuthResult(popup) {
+        return new Promise((resolve, reject) => {
+            const startTime = Date.now();
+            const timeout = 120000; // 2 minutes
+            
+            const checkResult = async () => {
+                try {
+                    // Check if popup is closed
+                    if (popup.closed) {
+                        reject(new Error('Authentication cancelled by user'));
+                        return;
+                    }
+                    
+                    // Check for timeout
+                    if (Date.now() - startTime > timeout) {
+                        popup.close();
+                        reject(new Error('Authentication timed out'));
+                        return;
+                    }
+                    
+                    // Check for auth result in storage
+                    const result = await chrome.storage.local.get(['authResult']);
+                    if (result.authResult && Date.now() - result.authResult.timestamp < 5000) {
+                        // Clear the result and resolve
+                        await chrome.storage.local.remove(['authResult']);
+                        resolve(result.authResult);
+                        return;
+                    }
+                    
+                    // Continue polling
+                    setTimeout(checkResult, 500);
+                } catch (error) {
+                    reject(error);
+                }
+            };
+            
+            checkResult();
+        });
+    }
+    
+    async initializeApp() {
+        // Load initial data after successful authentication
+        try {
+            await Promise.all([
+                this.updateSequenceDropdown(),
+                this.loadSequences()
+            ]);
+            
+            // Load emails for the currently active tab
+            if (this.elements.emailsTab.classList.contains('active')) {
+                await this.loadSentEmails();
+            }
+        } catch (error) {
+            console.error('Failed to initialize app:', error);
         }
     }
 

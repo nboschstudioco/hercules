@@ -1,0 +1,56 @@
+OAuth flow reaches success endpoint, but extension displays “user did not approve access”
+
+Message:
+
+The backend successfully completes OAuth:
+
+State is validated
+
+Token and user info are issued
+
+The browser is redirected to /auth/success?token=...
+
+However, the extension UI and handleSignIn logic frequently show an error:
+
+text
+Sign-in error: Error: The user did not approve access.
+Please review and update the following:
+
+Front-end OAuth Event Handling:
+
+Ensure that the extension correctly awaits and receives the final redirect and its parameters from /auth/success.
+
+Confirm that the extension does not throw 'Authentication cancelled' unless the actual Google consent/popup is denied or closed early.
+
+Cross-check timing: if the popup closes before completion, surface the correct error message. On actual success, parse and store the token/user info as intended.
+
+Error Catch and Interpretation:
+
+Audit all places where 'Authentication cancelled' or "user did not approve access" are thrown.
+
+Only show this error if the Google consent really failed—not after a valid /auth/success redirect.
+
+Popup/Flow Lifecycle:
+
+Confirm the extension UI only considers authentication cancelled if:
+
+The OAuth window is closed before Google responds,
+
+Or Google returns an access_denied/denied response.
+
+Otherwise, report success and transition to authenticated UI.
+
+Server-Extension Callback:
+
+Ensure the extension can receive and interpret the redirect with token and user parameters.
+
+Document for the extension devs the exact parameters and expected flow for this endpoint.
+
+Acceptance:
+
+If Google consent is given, extension UI should update to show signed-in user/email (no auth error).
+
+If denied, cancelled, or error from Google, extension should show "authentication error."
+
+Please review both extension and backend code for authentication flow completion, and log/trace the values passed during the /auth/success redirect. This will ensure the UI accurately reflects the true outcome of each authentication attempt.
+
