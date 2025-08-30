@@ -381,26 +381,32 @@ router.get('/success', (req, res) => {
             <p>You can now close this tab and return to your extension.</p>
         </div>
         <script>
-            // Send success message to Chrome extension background script
-            if (window.chrome && chrome.runtime) {
-                try {
-                    chrome.runtime.sendMessage({
-                        action: 'AUTH_SUCCESS',
-                        type: 'AUTH_SUCCESS',
-                        token: '${token}',
-                        user: ${user ? `JSON.parse(decodeURIComponent('${user}'))` : 'null'}
-                    }, (response) => {
-                        console.log('Auth success message sent to extension:', response);
-                    });
-                } catch (error) {
-                    console.log('Could not send message to extension:', error);
+            // Send success message to extension sidepanel via window.opener
+            try {
+                const authData = {
+                    type: 'oauth_success',
+                    token: '${token}',
+                    user: ${user ? `JSON.parse(decodeURIComponent('${user}'))` : 'null'}
+                };
+                
+                console.log('Sending auth success data:', authData);
+                
+                // Send message to opener window (extension sidepanel)
+                if (window.opener) {
+                    window.opener.postMessage(authData, '*');
+                    console.log('Auth success message sent to opener');
+                } else {
+                    console.warn('No opener window found');
                 }
+                
+            } catch (error) {
+                console.error('Error sending auth success message:', error);
             }
             
-            // Close tab after a short delay
+            // Close popup after a short delay
             setTimeout(() => {
                 window.close();
-            }, 1500);
+            }, 1000);
         </script>
     </body>
     </html>
@@ -454,26 +460,32 @@ router.get('/error', (req, res) => {
             <p>Please close this tab and try again.</p>
         </div>
         <script>
-            // Send error message to Chrome extension background script
-            if (window.chrome && chrome.runtime) {
-                try {
-                    chrome.runtime.sendMessage({
-                        action: 'AUTH_ERROR',
-                        type: 'AUTH_ERROR',
-                        error: '${error || 'unknown_error'}',
-                        message: 'Authentication failed'
-                    }, (response) => {
-                        console.log('Auth error message sent to extension:', response);
-                    });
-                } catch (error) {
-                    console.log('Could not send message to extension:', error);
+            // Send error message to extension sidepanel via window.opener
+            try {
+                const errorData = {
+                    type: 'oauth_error',
+                    error: '${error || 'unknown_error'}',
+                    message: 'Authentication failed'
+                };
+                
+                console.log('Sending auth error data:', errorData);
+                
+                // Send message to opener window (extension sidepanel)
+                if (window.opener) {
+                    window.opener.postMessage(errorData, '*');
+                    console.log('Auth error message sent to opener');
+                } else {
+                    console.warn('No opener window found');
                 }
+                
+            } catch (error) {
+                console.error('Error sending auth error message:', error);
             }
             
-            // Close tab after a delay
+            // Close popup after a delay
             setTimeout(() => {
                 window.close();
-            }, 2500);
+            }, 2000);
         </script>
     </body>
     </html>

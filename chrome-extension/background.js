@@ -60,14 +60,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             handleAuthClear(request, sendResponse);
             return true;
             
-        // Handle OAuth success messages from backend auth page
-        case 'AUTH_SUCCESS':
-            handleOAuthSuccess(request, sendResponse);
-            return true;
-            
-        case 'AUTH_ERROR':
-            handleOAuthError(request, sendResponse);
-            return true;
+        // OAuth messaging is now handled via window.postMessage from backend to sidepanel
             
         default:
             console.log('Unknown action:', request.action);
@@ -239,8 +232,7 @@ async function clearAuthData() {
             'sessionToken', 
             'userEmail', 
             'userData', 
-            'lastLogin',
-            'authResult'
+            'lastLogin'
         ]);
         
         console.log('Authentication data cleared');
@@ -291,56 +283,7 @@ async function handleAuthClear(request, sendResponse) {
     }
 }
 
-/**
- * Handle OAuth success messages from backend auth page
- */
-async function handleOAuthSuccess(request, sendResponse) {
-    try {
-        const { token, user } = request;
-        
-        // Store session token
-        await chrome.storage.local.set({
-            sessionToken: token,
-            userEmail: user.email,
-            userData: user,
-            lastLogin: new Date().toISOString(),
-            authResult: { success: true, token, user, timestamp: Date.now() }
-        });
-        
-        console.log('OAuth success stored, token:', token);
-        
-        // Send success response back to caller
-        sendResponse({ success: true, token, user });
-    } catch (error) {
-        console.error('Error handling OAuth success:', error);
-        sendResponse({ success: false, error: error.message });
-    }
-}
-
-/**
- * Handle OAuth error messages from backend auth page
- */
-async function handleOAuthError(request, sendResponse) {
-    try {
-        const { error, message } = request;
-        
-        // Store error result
-        await chrome.storage.local.set({
-            authResult: { success: false, error, message, timestamp: Date.now() }
-        });
-        
-        // Clear any stored auth data
-        await clearAuthData();
-        
-        console.log('OAuth error stored:', error, message);
-        
-        // Send error response back to caller
-        sendResponse({ success: false, error, message });
-    } catch (err) {
-        console.error('Error handling OAuth error:', err);
-        sendResponse({ success: false, error: 'Failed to handle authentication error' });
-    }
-}
+// OAuth messaging removed - now handled via window.postMessage from backend to sidepanel
 
 /**
  * Set up periodic token check (every 30 minutes)

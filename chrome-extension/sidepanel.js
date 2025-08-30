@@ -196,9 +196,6 @@ class GmailFollowUpApp {
             this.elements.signinBtn.disabled = true;
             this.elements.signinBtn.textContent = 'Signing in...';
             
-            // Clear any previous auth results
-            await chrome.storage.local.remove(['authResult']);
-            
             // Get OAuth details from backend
             const authDetails = await apiClient.startAuth();
             
@@ -214,7 +211,7 @@ class GmailFollowUpApp {
                 throw new Error('Popup blocked. Please allow popups and try again.');
             }
             
-            // Poll for auth result from background script
+            // Wait for auth result from popup
             const authResult = await this.waitForAuthResult(popup);
             
             if (authResult.success) {
@@ -226,6 +223,7 @@ class GmailFollowUpApp {
                 this.updateAuthenticationStatus('ok');
                 this.showState('main-app');
                 this.showTab('emails');
+                await this.initializeApp();
                 this.resetSignInButton();
             } else {
                 throw new Error(authResult.message || authResult.error || 'Authentication failed');
@@ -242,39 +240,56 @@ class GmailFollowUpApp {
         return new Promise((resolve, reject) => {
             const startTime = Date.now();
             const timeout = 120000; // 2 minutes
+            let messageReceived = false;
             
-            const checkResult = async () => {
-                try {
-                    // Check if popup is closed
-                    if (popup.closed) {
-                        reject(new Error('Authentication cancelled by user'));
-                        return;
-                    }
-                    
-                    // Check for timeout
-                    if (Date.now() - startTime > timeout) {
-                        popup.close();
-                        reject(new Error('Authentication timed out'));
-                        return;
-                    }
-                    
-                    // Check for auth result in storage
-                    const result = await chrome.storage.local.get(['authResult']);
-                    if (result.authResult && Date.now() - result.authResult.timestamp < 5000) {
-                        // Clear the result and resolve
-                        await chrome.storage.local.remove(['authResult']);
-                        resolve(result.authResult);
-                        return;
-                    }
-                    
-                    // Continue polling
-                    setTimeout(checkResult, 500);
-                } catch (error) {
-                    reject(error);
+            // Listen for messages from the popup
+            const messageListener = (event) => {
+                // Verify origin is our backend
+                if (event.origin !== apiClient.getBackendUrl()) {
+                    return;
+                }
+                
+                console.log('Received message from popup:', event.data);
+                
+                if (event.data.type === 'oauth_success') {
+                    messageReceived = true;
+                    window.removeEventListener('message', messageListener);
+                    resolve({
+                        success: true,
+                        token: event.data.token,
+                        user: event.data.user
+                    });
+                } else if (event.data.type === 'oauth_error') {
+                    messageReceived = true;
+                    window.removeEventListener('message', messageListener);
+                    reject(new Error(event.data.message || event.data.error || 'Authentication failed'));
                 }
             };
             
-            checkResult();
+            window.addEventListener('message', messageListener);
+            
+            // Set up timeout
+            const timeoutId = setTimeout(() => {
+                window.removeEventListener('message', messageListener);
+                if (!messageReceived && !popup.closed) {
+                    popup.close();
+                }
+                reject(new Error('Authentication timed out'));
+            }, timeout);
+            
+            // Monitor popup closure
+            const checkClosed = setInterval(() => {
+                if (popup.closed) {
+                    clearInterval(checkClosed);
+                    clearTimeout(timeoutId);
+                    window.removeEventListener('message', messageListener);
+                    
+                    // Only treat as cancellation if no success message was received
+                    if (!messageReceived) {
+                        reject(new Error('Authentication cancelled by user'));
+                    }
+                }
+            }, 500);
         });
     }
     

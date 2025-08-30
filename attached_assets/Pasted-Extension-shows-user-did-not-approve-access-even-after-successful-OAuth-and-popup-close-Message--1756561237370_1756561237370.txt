@@ -1,0 +1,51 @@
+Extension shows “user did not approve access” even after successful OAuth and popup close
+
+Message:
+
+The backend’s OAuth flow completes successfully (state validated, token+user issued, redirected to /auth/success?token=...&user=...), and the popup closes. However, the extension still shows:
+
+text
+Sign-in error: Error: The user did not approve access.
+Please address these points for complete and reliable front-end OAuth handling:
+
+Popup–Extension Communication Logic:
+
+Update popup handling so that when /auth/success is reached (with token & user info), the closing of the popup triggers a message/event to the main extension window.
+
+The extension should listen for this event and, upon receiving the token/user, mark the login as successful and update the UI accordingly.
+
+Only show the “user did not approve access” error if the user manually closes the window or Google redirects with error=access_denied (or equivalent).
+
+Robust Message Passing:
+
+Use window.postMessage or chrome.runtime.sendMessage to communicate from the final popup window (that received /auth/success) back to the extension UI.
+
+In your /auth/success route, include a script that sends the token/user back to the opener window before calling window.close(), e.g.:
+
+xml
+<script>
+  window.opener.postMessage(
+    { type: 'oauth_success', token: '...', user: { ... } }, '*'
+  );
+  window.close();
+</script>
+In the extension panel code, listen for this message event and process the login state.
+
+Lifecycle/Error Handling:
+
+If the popup closes without a message containing token, only then treat as a cancellation.
+
+If any error (access_denied, user closes before consent), surface the “authentication error.”
+
+If the token is received, save and use it, and update extension UI to authenticated state regardless of how the popup was closed.
+
+Test/Acceptance:
+
+Approving OAuth should always log the user in and show their email in the UI.
+
+Cancelling or denying access (or network error) is the only scenario where the error appears.
+
+Closing popup after /auth/success behaves as a login success, never as a cancellation.
+
+Please audit the entire popup window lifecycle, event/message handoff, and ensure the extension only treats a true user-denied or failed auth as an error—not a successful popup close.
+
