@@ -1,0 +1,132 @@
+Step 3: Backend Service MVP — COMPLETE INSTRUCTIONS
+Goal
+Implement a foundational backend that conforms to the defined API contract, with endpoints, data models, storage, and queueing as described. This will support all client needs: authentication, email sync, sequence/enrollment management, scheduling, and sync.
+
+1. API ROUTES
+Implement all endpoints from the API contract, grouped by category:
+
+Authentication/User
+POST /auth/connect — Start Gmail OAuth flow.
+
+POST /auth/refresh — Refresh expired tokens.
+
+GET /auth/status — Return user’s auth/token status.
+
+DELETE /auth/disconnect — Revoke/cleanup user access.
+
+GET /user/profile — Return user info.
+
+Email Management
+GET /emails/sent — Get recent sent emails.
+
+POST /emails/sync — Trigger Gmail inbox sync.
+
+GET /emails/sent/{emailId} — Get one sent email.
+
+POST /emails/check-replies — Trigger a reply check for specific emails.
+
+Sequence (CRUD)
+GET /sequences
+
+POST /sequences
+
+GET /sequences/{sequenceId}
+
+PUT /sequences/{sequenceId}
+
+DELETE /sequences/{sequenceId}
+
+Enrollment (CRUD, Control)
+GET /enrollments
+
+POST /enrollments
+
+GET /enrollments/{enrollmentId}
+
+PUT /enrollments/{enrollmentId}
+
+DELETE /enrollments/{enrollmentId}
+
+POST /enrollments/{enrollmentId}/pause
+
+POST /enrollments/{enrollmentId}/resume
+
+Automation, Scheduling, Health
+GET /schedules
+
+POST /schedules/{enrollmentId}/trigger
+
+GET /schedules/health
+
+POST /sync
+
+Analytics & Monitoring
+GET /analytics/sends
+
+GET /analytics/enrollments
+
+GET /health
+
+All API endpoints must use token/session auth as described in Step 1.
+
+2. BACKEND STORAGE
+Use a persistent storage engine (e.g., JSON file/lowdb, SQLite for MVP, or MongoDB).
+Ensure you store and access data using the provided schemas for:
+
+User
+
+Sequence
+
+Email
+
+Enrollment
+
+Schedule
+
+All writes, reads, and updates must utilize the keys and field names exactly as specified (UUIDs as IDs, ISO8601, etc.).
+
+3. FOLLOW-UP SEND QUEUE
+Design a server-side queue for scheduled sends per user/enrollment.
+
+For MVP, "sending" can be mocked by logging/send-to-db, actual email transmission may be stubbed until next milestone.
+
+The queue should:
+
+Calculate nextSendDate using the enrollment and sequence data.
+
+Support manual triggers via /schedules/{enrollmentId}/trigger.
+
+Persist all scheduled/due follow-ups and record result of sends.
+
+4. REPLY CHECK & SYNC
+Implement endpoints to force a reply check (POST /emails/check-replies) and full sync (POST /sync).
+
+Store and update reply/response status within each Enrollment.
+
+5. DATA CONTRACTS
+Data formats for all API request and response bodies must strictly follow the provided JSON samples for sequence, enrollment, schedule, etc.
+
+Ensure pagination (for GET /enrollments) and appropriate status returns for all API operations.
+
+6. DOCUMENTATION & TESTING
+Document each endpoint:
+
+Method, path, required parameters, sample request/response, possible error codes.
+
+Inline comments for complex storage/logging.
+
+Provide test cases (Postman or curl examples) for every major endpoint.
+
+Log all inserts, updates, deletes, and queue triggers, including userId/email for audit.
+
+7. ACCEPTANCE CRITERIA
+All endpoints from contract are implemented and respond as specified.
+
+Data is persisted and updated per schema with unique IDs and correct field names.
+
+The send queue can enqueue, trigger, and record follow-ups for enrolled threads.
+
+Sync, pause, resume, and analytics all return proper sample responses.
+
+Extension connects and fully syncs state using the new API only (no local extension storage required any longer).
+
