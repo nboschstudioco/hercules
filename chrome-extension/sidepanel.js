@@ -270,25 +270,30 @@ class GmailFollowUpApp {
                 const timestamp = new Date().toISOString();
                 const backendUrl = apiClient.getBackendUrl();
                 
-                // Log EVERY message received for debugging
-                console.log('Extension [' + timestamp + ']: Received message event:', {
-                    origin: event.origin,
-                    expectedOrigin: backendUrl,
-                    data: event.data,
-                    source: event.source,
-                    originMatches: event.origin === backendUrl
-                });
+                // Log EVERY message received for debugging - NO FILTERING
+                console.log('Extension [' + timestamp + ']: ===== MESSAGE EVENT RECEIVED =====');
+                console.log('Extension [' + timestamp + ']: event.origin:', event.origin);
+                console.log('Extension [' + timestamp + ']: expected backend URL:', backendUrl);
+                console.log('Extension [' + timestamp + ']: event.data:', event.data);
+                console.log('Extension [' + timestamp + ']: event.source:', event.source);
+                console.log('Extension [' + timestamp + ']: origin matches exactly:', event.origin === backendUrl);
+                console.log('Extension [' + timestamp + ']: origin matches localhost:3000:', /^https?:\/\/localhost:3000$/.test(event.origin));
+                console.log('Extension [' + timestamp + ']: ================================');
                 
-                // Verify origin is our backend for security
-                if (event.origin !== backendUrl) {
-                    console.log('Extension [' + timestamp + ']: REJECTING message from origin:', event.origin, 'expected:', backendUrl);
+                // TEMPORARILY BYPASS origin check for debugging - ACCEPT ALL LOCALHOST ORIGINS
+                const isValidOrigin = /^https?:\/\/localhost:3000$/.test(event.origin) || event.origin === backendUrl;
+                
+                if (!isValidOrigin) {
+                    console.log('Extension [' + timestamp + ']: REJECTING message from origin:', event.origin, 'expected pattern: http://localhost:3000');
                     return;
                 }
                 
-                console.log('Extension [' + timestamp + ']: ACCEPTING message from correct origin:', event.data);
+                console.log('Extension [' + timestamp + ']: ACCEPTING message from valid localhost origin');
                 
-                if (event.data.type === 'oauth_success') {
-                    console.log('Extension [' + timestamp + ']: OAuth SUCCESS - processing authentication with token:', event.data.token?.substring(0, 20) + '...');
+                if (event.data && event.data.type === 'oauth_success') {
+                    console.log('Extension [' + timestamp + ']: ★★★ OAuth SUCCESS MESSAGE RECEIVED ★★★');
+                    console.log('Extension [' + timestamp + ']: Token received:', event.data.token?.substring(0, 20) + '...');
+                    console.log('Extension [' + timestamp + ']: User email:', event.data.user?.email);
                     messageReceived = true;
                     cleanup();
                     resolve({
@@ -296,13 +301,14 @@ class GmailFollowUpApp {
                         token: event.data.token,
                         user: event.data.user
                     });
-                } else if (event.data.type === 'oauth_error') {
-                    console.log('Extension [' + timestamp + ']: OAuth ERROR received from backend:', event.data.error);
+                } else if (event.data && event.data.type === 'oauth_error') {
+                    console.log('Extension [' + timestamp + ']: ★★★ OAuth ERROR MESSAGE RECEIVED ★★★');
+                    console.log('Extension [' + timestamp + ']: Error:', event.data.error);
                     messageReceived = true;
                     cleanup();
                     reject(new Error(event.data.message || event.data.error || 'Authentication failed'));
                 } else {
-                    console.log('Extension [' + timestamp + ']: Unknown message type:', event.data.type);
+                    console.log('Extension [' + timestamp + ']: Message received but unknown type or format:', event.data);
                 }
             };
             

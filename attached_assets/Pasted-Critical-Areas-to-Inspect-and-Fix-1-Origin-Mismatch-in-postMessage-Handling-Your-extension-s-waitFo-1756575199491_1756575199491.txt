@@ -1,0 +1,80 @@
+Critical Areas to Inspect and Fix
+1. Origin Mismatch in postMessage Handling
+Your extension's waitForAuthResult listener does:
+
+js
+if (event.origin !== backendUrl) {
+    console.log('... REJECTING message from origin:', event.origin, 'expected:', backendUrl);
+    return;
+}
+Problem:
+
+backendUrl (from apiClient.getBackendUrl()) must match exactly (including protocol, subdomain, and port) the origin string of the message sent from the backend popup.
+
+E.g., if your backend is at http://localhost:3000 but the popup’s origin is reported as http://127.0.0.1:3000, or vice versa (or one is https, one is http), your extension will reject all valid messages.
+
+Solution:
+
+Print/debug both event.origin and backendUrl on a real sign-in attempt.
+
+Ensure your backend popup uses the unambiguous, browser-friendly hostname (localhost preferred over 127.0.0.1) and protocol.
+
+The postMessage sender (in /auth/success) and the receiver in the extension must agree exactly.
+
+2. Listener is in a Proper UI Context and Attached Before OAuth
+You are correctly attaching the message handler as soon as the popup opens:
+
+js
+window.addEventListener('message', messageListener);
+Problem:
+
+If your extension UI reloads, reloads the sidepanel, or if the event listener is detached before the popup completes, you will miss the message.
+
+Solution:
+
+Double-check that the listener stays attached until the actual timeout, and that no browser navigation or sidepanel reload breaks the context.
+
+Watch for any console logs that indicate the listener is cleaning up prematurely.
+
+3. postMessage is Actually Sent from Backend Before Window Close
+In /auth/success, the code must run:
+
+js
+window.opener.postMessage({ type: 'oauth_success', token: "...", user: {...} }, "*");
+setTimeout(() => window.close(), 1500);
+Problem:
+
+It MUST be posted from the right origin (matching your extension's backendUrl).
+
+If the popup is not opened by the extension window (e.g., via direct open or a navigation redirect), window.opener might be null.
+
+Solution:
+
+Ensure /auth/success logs something to the console to prove that postMessage ran, and print out the intended data and window.opener.
+
+4. Session Cookie/CORS Issues on Backend
+If your backend (running on localhost:3000) and frontend (extension) have inconsistent CORS headers or the browser blocks cookies/cross-origin requests, event.origin or the transport itself might fail.
+
+Solution:
+
+Make sure all CORS responses from the backend allow http://localhost (or your actual extension, if running from a packed path).
+
+Temporarily set your event.origin check to console.log/bypass for debugging, to see if this is the source of the rejection:
+
+js
+// Accept any localhost:3000-style origin for debugging
+if (!/^http:\/\/localhost:3000$/.test(event.origin)) {
+    // or, in dev, just accept and log all origins
+    // PRODUCTION: Lock this down
+}
+Debugging Steps
+Log both in the popup (/auth/success):
+
+Send console.log with the postMessage data and window.opener info.
+
+Log in extension (sidepanel.js):
+
+Print every event.origin, expectedOrigin, and data. Confirm if any message is received (“Extension: Received message event” log).
+
+Temporarily relax the origin check (for a single test):
+
