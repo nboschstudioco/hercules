@@ -1,0 +1,58 @@
+OAuth init - stateless state created: {
+  statePayload: {
+    nonce: 'b20798dc-1e74-49c9-ace6-ed65afd6323b',
+    timestamp: 1756562790875,
+    type: 'oauth_state'
+  },
+  hasJWT: true,
+  tokenLength: 321
+}
+OAuth callback received: {
+  hasCode: true,
+  hasState: true,
+  hasError: false,
+  receivedState: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6ImIyMDc5OGRjLTFlNzQtNDljOS1hY2U2LWVkNjVhZmQ2MzIzYiIsInRpbWVzdGFtcCI6MTc1NjU2Mjc5MDg3NSwidHlwZSI6Im9hdXRoX3N0YXRlIiwiaWF0IjoxNzU2NTYyNzkwLCJleHAiOjE3NTY1NjMzOTAsImF1ZCI6Im9hdXRoLXN0YXRlIiwiaXNzIjoiZ21haWwtZm9sbG93dXAtYmFja2VuZCJ9.PY-HeN5feQQbPmL8oCO12os_vUpY0nCz-6Thu073VIU',
+  sessionState: undefined,
+  stateMatch: false,
+  sessionId: '-NC0GhaDNILncq6bqIqhTPmjrJ5p7yzT',
+  hasSession: true,
+  fullSession: Session {
+    cookie: {
+      path: '/',
+      _expires: 2025-08-31T14:06:38.073Z,
+      originalMaxAge: 86400000,
+      httpOnly: false,
+      secure: false,
+      sameSite: 'lax'
+    }
+  },
+  baseUrl: 'http://localhost:3000',
+  requestHeaders: {
+    origin: undefined,
+    host: 'localhost:3000',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36',
+    referer: undefined
+  }
+}
+State validation successful: {
+  statePayload: {
+    nonce: 'b20798dc-1e74-49c9-ace6-ed65afd6323b',
+    timestamp: 1756562790875,
+    type: 'oauth_state',
+    iat: 1756562790,
+    exp: 1756563390,
+    aud: 'oauth-state',
+    iss: 'gmail-followup-backend'
+  },
+  ageMinutes: 0.12005
+}
+OAuth success, redirecting to: http://localhost:3000/auth/success?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJlOGVkODJjMy05ODcyLTRmMWMtYWYyYi1iZGRhZTQ4NjllMTciLCJlbWFpbCI6Im5pY2tAYm9zY2hzdHVkaW8uY28iLCJ0eXBlIjoic2Vzc2lvbiIsImlhdCI6MTc1NjU2Mjc5OCwiZXhwIjoxNzU3MTY3NTk4LCJhdWQiOiJnbWFpbC1mb2xsb3d1cC1leHRlbnNpb24iLCJpc3MiOiJnbWFpbC1mb2xsb3d1cC1iYWNrZW5kIn0.BhqSlqmS9TUkPG141jNGixHE--_NkJVZBy8G9bBHJz4&user=%7B%22id%22%3A%22e8ed82c3-9872-4f1c-af2b-bddae4869e17%22%2C%22email%22%3A%22nick%40boschstudio.co%22%2C%22name%22%3A%22Nick%20Bosch%22%7D
+OAuth init - stateless state created: {
+  statePayload: {
+    nonce: 'd1296bdd-1157-448d-bb0f-250467819139',
+    timestamp: 1756562837488,
+    type: 'oauth_state'
+  },
+  hasJWT: true,
+  tokenLength: 321
+}
