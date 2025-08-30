@@ -59,17 +59,36 @@ router.get('/google/init', (req, res) => {
  * Handle OAuth2 callback from Google
  */
 router.get('/google/callback', async (req, res) => {
+    // Build proper base URL (available for both success and error paths)
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    
     try {
         const { code, state, error } = req.query;
         
+        // Debug logging for OAuth callback
+        console.log('OAuth callback received:', {
+            hasCode: !!code,
+            hasState: !!state,
+            hasError: !!error,
+            sessionState: req.session.oauthState,
+            stateMatch: state === req.session.oauthState,
+            baseUrl: baseUrl
+        });
+        
         // Handle OAuth errors
         if (error) {
-            return res.redirect(`${req.get('origin')}/auth/error?error=${encodeURIComponent(error)}`);
+            console.log('OAuth error from Google:', error);
+            return res.redirect(`${baseUrl}/auth/error?error=${encodeURIComponent(error)}`);
         }
         
         // Verify state parameter (CSRF protection)
         if (!state || state !== req.session.oauthState) {
-            return res.redirect(`${req.get('origin')}/auth/error?error=invalid_state`);
+            console.log('State validation failed:', {
+                receivedState: state,
+                sessionState: req.session.oauthState,
+                hasSession: !!req.session
+            });
+            return res.redirect(`${baseUrl}/auth/error?error=invalid_state`);
         }
         
         // Exchange code for tokens
@@ -127,17 +146,18 @@ router.get('/google/callback', async (req, res) => {
         delete req.session.oauthState;
         
         // Redirect to success page with token
-        const successUrl = `${req.get('origin')}/auth/success?token=${sessionToken}&user=${encodeURIComponent(JSON.stringify({
+        const successUrl = `${baseUrl}/auth/success?token=${sessionToken}&user=${encodeURIComponent(JSON.stringify({
             id: userId,
             email: user.email,
             name: user.name
         }))}`;
         
+        console.log('OAuth success, redirecting to:', successUrl);
         res.redirect(successUrl);
         
     } catch (error) {
         console.error('OAuth callback error:', error);
-        res.redirect(`${req.get('origin')}/auth/error?error=callback_failed`);
+        res.redirect(`${baseUrl}/auth/error?error=callback_failed`);
     }
 });
 
