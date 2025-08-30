@@ -15,23 +15,11 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "chrome_extension_test"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "Backend Server"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
 args = "Chrome Extension Server"
-
-[[workflows.workflow]]
-name = "chrome_extension_test"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "google-chrome --load-extension=. --new-window"
 
 [[workflows.workflow]]
 name = "Backend Server"

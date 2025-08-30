@@ -1,0 +1,75 @@
+Step 4: Extension-to-Backend Communication — COMPLETE INSTRUCTIONS
+Goal
+Migrate all extension logic for data retrieval, updates, and user actions to rely exclusively on the backend REST API (never chrome.storage.local or any local browser-only storage). All state, scheduling, and workflows must be driven by server API responses.
+
+1. Data/API Integration
+Replace local storage access with authenticated API calls:
+
+Enrollments:
+
+Fetch all enrollments from GET /enrollments (with support for filters and pagination).
+
+Enroll user-selected emails with POST /enrollments (send required payload).
+
+Pause, resume, or delete enrollments via respective endpoints.
+
+Sequences:
+
+Fetch sequences via GET /sequences.
+
+Create, update, and delete sequences via POST, PUT, and DELETE /sequences/{id}.
+
+Status:
+
+Poll or listen for updates from GET /enrollments, GET /schedules, and GET /analytics/enrollments (if needed).
+
+Show immediate status changes—pending, active, paused, finished, error—based solely on API response values.
+
+Emails:
+
+Fetch sent emails from GET /emails/sent.
+
+Initiate sync with POST /emails/sync.
+
+Display complete/filtered lists and single message details as needed.
+
+2. UI Behavior and State Management
+The extension UI must read all its initial state from server endpoints after login (not from cached or previous state).
+
+Every user action (enrollment, sequence edit, pause/resume, etc.) triggers the corresponding backend API call, then updates UI with live, server-returned results.
+
+Implement error handling and feedback:
+
+On any failed API operation, show errors or retry suggestions to the user.
+
+Loading and progress states (spinners, etc.) must show while awaiting API responses.
+
+3. Authentication & Security
+For every API request, include the required JWT (or other token from the authentication step) in the Authorization: Bearer ... header.
+
+On token expiration or unauthorized errors, prompt for re-authentication or surface user-friendly errors.
+
+Never send sensitive credentials or tokens in URLs.
+
+4. API Robustness
+Handle paginated or filtered results from endpoints like /enrollments, displaying correctly in the UI.
+
+Respect and surface server-provided status values, timestamps, and error states for each record.
+
+All scheduling, next-send calculations, and state transitions are determined by the backend—never by local timers/logic.
+
+5. Acceptance Criteria
+Extension shows live, accurate state for emails, sequences, enrollments—the same as seen in direct API calls (e.g. via Postman/curl).
+
+All mutations (create, edit, pause, unenroll, etc.) only occur via corresponding backend APIs, with no local shadow state or storage logic remaining.
+
+UI responds immediately to backend changes and errors, with user-friendly feedback.
+
+After a browser restart or fresh login, all UI state and data should remain correct and in sync, as loaded from the backend.
+
+No usage of chrome.storage.local or extension-internal persistence remains for core records (other than temporary UI state).
+
+6. Documentation & Code Notes
+Inline JS comments for each API call (request details, handling server errors, retries).
+
+Clearly note any remaining temporary local state, and ensure it cannot become a source of data inconsistency.

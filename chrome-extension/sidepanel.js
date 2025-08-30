@@ -167,17 +167,17 @@ class GmailFollowUpApp {
 
     async checkAuthStatus() {
         try {
-            const result = await chrome.storage.local.get(['sessionToken', 'userEmail', 'lastLogin']);
+            const sessionToken = await apiClient.getSessionToken();
             
-            if (result.sessionToken && result.userEmail) {
-                // Verify session token with backend
-                const authValid = await this.verifySessionToken(result.sessionToken);
+            if (sessionToken) {
+                // Check authentication status with backend
+                const authStatus = await apiClient.checkAuthStatus();
                 
-                if (authValid) {
+                if (authStatus.authenticated) {
                     this.isAuthenticated = true;
-                    this.elements.userEmail.textContent = result.userEmail;
+                    this.elements.userEmail.textContent = authStatus.user.email;
                     this.updateAuthenticationStatus('ok');
-                    this.showState('main');
+                    this.showState('main-app');
                     this.showTab('emails');
                     return;
                 }
@@ -186,6 +186,7 @@ class GmailFollowUpApp {
             this.showState('signin');
         } catch (error) {
             console.error('Error checking auth status:', error);
+            await apiClient.clearSessionToken();
             this.showState('signin');
         }
     }
@@ -195,8 +196,47 @@ class GmailFollowUpApp {
             this.elements.signinBtn.disabled = true;
             this.elements.signinBtn.textContent = 'Signing in...';
             
-            // Start web-based OAuth flow
-            await this.startWebOAuthFlow();
+            // Get OAuth details from backend
+            const authDetails = await apiClient.startAuth();
+            
+            // Use Chrome Identity API for OAuth
+            const result = await chrome.identity.launchWebAuthFlow({
+                url: authDetails.authUrl,
+                interactive: true
+            });
+
+            if (result) {
+                // Extract auth code from callback URL
+                const url = new URL(result);
+                const authCode = url.searchParams.get('code');
+                
+                if (authCode) {
+                    // Exchange code for session token via backend
+                    const tokenResponse = await fetch(`${apiClient.getBackendUrl()}/auth/google/callback`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code: authCode })
+                    });
+                    
+                    if (tokenResponse.ok) {
+                        const tokenData = await tokenResponse.json();
+                        await apiClient.setSessionToken(tokenData.sessionToken);
+                        
+                        this.isAuthenticated = true;
+                        this.elements.userEmail.textContent = tokenData.user.email;
+                        this.updateAuthenticationStatus('ok');
+                        this.showState('main-app');
+                        this.showTab('emails');
+                        this.resetSignInButton();
+                    } else {
+                        throw new Error('Authentication failed');
+                    }
+                } else {
+                    throw new Error('No authorization code received');
+                }
+            } else {
+                throw new Error('Authentication cancelled');
+            }
             
         } catch (error) {
             console.error('Sign-in error:', error);
@@ -207,32 +247,13 @@ class GmailFollowUpApp {
 
     async handleSignOut() {
         try {
-            const result = await chrome.storage.local.get(['sessionToken']);
-            if (result.sessionToken) {
-                // Logout from backend
-                await this.logoutFromBackend(result.sessionToken);
-            }
-            
-            // Clear only authentication data, preserve sequences and enrollments
-            await chrome.storage.local.remove([
-                'sessionToken', 
-                'userEmail', 
-                'userData',
-                'lastLogin'
-            ]);
-            
+            await apiClient.logout();
             this.isAuthenticated = false;
             this.selectedEmails.clear();
             this.showState('signin');
         } catch (error) {
             console.error('Sign-out error:', error);
-            // Continue with local cleanup even if backend logout fails
-            await chrome.storage.local.remove([
-                'sessionToken', 
-                'userEmail', 
-                'userData',
-                'lastLogin'
-            ]);
+            await apiClient.clearSessionToken();
             this.isAuthenticated = false;
             this.selectedEmails.clear();
             this.showState('signin');
@@ -246,61 +267,21 @@ class GmailFollowUpApp {
 
     async getGmailToken() {
         try {
-            const result = await chrome.storage.local.get(['sessionToken']);
-            if (!result.sessionToken) {
-                throw new Error('No session token found');
-            }
-            
-            const response = await fetch(`${this.getBackendUrl()}/user/gmail-token`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${result.sessionToken}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                if (response.status === 401 && errorData.requiresReauth) {
-                    // Session expired, need to re-authenticate
-                    await this.handleSignOut();
-                    throw new Error('Session expired. Please sign in again.');
-                }
-                throw new Error(errorData.error || 'Failed to get Gmail token');
-            }
-            
-            const data = await response.json();
-            return data.accessToken;
-            
+            const result = await apiClient.getGmailToken();
+            return result.accessToken;
         } catch (error) {
             console.error('Error getting Gmail token:', error);
+            if (error.message.includes('Authentication expired')) {
+                await this.handleSignOut();
+            }
             throw error;
         }
     }
 
     async getUserProfile() {
         try {
-            const result = await chrome.storage.local.get(['sessionToken']);
-            if (!result.sessionToken) {
-                throw new Error('No session token found');
-            }
-            
-            const response = await fetch(`${this.getBackendUrl()}/user/profile`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${result.sessionToken}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to get user profile');
-            }
-            
-            const data = await response.json();
-            return data.user;
-            
+            const result = await apiClient.getUserProfile();
+            return result.user;
         } catch (error) {
             console.error('Error getting user profile:', error);
             throw error;
@@ -309,53 +290,19 @@ class GmailFollowUpApp {
 
     async verifySessionToken(sessionToken) {
         try {
-            const response = await fetch(`${this.getBackendUrl()}/auth/status`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${sessionToken}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (!response.ok) {
-                return false;
-            }
-            
-            const data = await response.json();
-            return data.success && data.authenticated;
-            
+            const authStatus = await apiClient.checkAuthStatus();
+            return authStatus.authenticated;
         } catch (error) {
             console.error('Error verifying session token:', error);
             return false;
         }
     }
 
-    async logoutFromBackend(sessionToken) {
-        try {
-            const response = await fetch(`${this.getBackendUrl()}/auth/logout`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${sessionToken}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (!response.ok) {
-                console.warn('Backend logout failed, continuing with local cleanup');
-            }
-            
-        } catch (error) {
-            console.error('Failed to logout from backend:', error);
-        }
-    }
+    // Removed - replaced by apiClient.logout()
 
     async storeAuthData(sessionToken, userData) {
-        await chrome.storage.local.set({
-            sessionToken: sessionToken,
-            userEmail: userData.email,
-            userData: userData,
-            lastLogin: new Date().toISOString()
-        });
+        await apiClient.setSessionToken(sessionToken);
+        // User data is now stored on the backend via the session token
     }
 
     updateAuthenticationStatus(status) {
@@ -363,100 +310,7 @@ class GmailFollowUpApp {
     }
     
     getBackendUrl() {
-        // Use browser-safe configuration
-        return window.APP_CONFIG?.BACKEND_URL || 'http://localhost:3000';
-    }
-    
-    async startWebOAuthFlow() {
-        try {
-            // Get OAuth initialization URL from backend
-            const response = await fetch(`${this.getBackendUrl()}/auth/google/init`, {
-                method: 'GET',
-                credentials: 'include'
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to initialize OAuth flow');
-            }
-            
-            const data = await response.json();
-            
-            if (!data.success || !data.authUrl) {
-                throw new Error('Invalid OAuth initialization response');
-            }
-            
-            // Open OAuth URL in new tab
-            const authTab = await chrome.tabs.create({ 
-                url: data.authUrl,
-                active: true
-            });
-            
-            // Listen for authentication completion
-            this.listenForAuthCompletion(authTab.id);
-            
-        } catch (error) {
-            console.error('Error starting OAuth flow:', error);
-            throw error;
-        }
-    }
-    
-    listenForAuthCompletion(tabId) {
-        // Set up message listener for auth completion
-        const authMessageListener = (message, sender, sendResponse) => {
-            if (message.type === 'AUTH_SUCCESS' && message.token) {
-                this.handleAuthSuccess(message.token, message.user);
-                chrome.runtime.onMessage.removeListener(authMessageListener);
-                chrome.tabs.remove(tabId); // Close auth tab
-            } else if (message.type === 'AUTH_ERROR') {
-                this.handleAuthError(message.error, message.message);
-                chrome.runtime.onMessage.removeListener(authMessageListener);
-                chrome.tabs.remove(tabId); // Close auth tab
-            } else if (message.type === 'AUTH_RETRY') {
-                chrome.runtime.onMessage.removeListener(authMessageListener);
-                chrome.tabs.remove(tabId); // Close current tab
-                this.startWebOAuthFlow(); // Restart the flow
-            }
-        };
-        
-        chrome.runtime.onMessage.addListener(authMessageListener);
-        
-        // Also listen for tab close (user cancelled)
-        const tabCloseListener = (closedTabId, removeInfo) => {
-            if (closedTabId === tabId) {
-                chrome.runtime.onMessage.removeListener(authMessageListener);
-                chrome.tabs.onRemoved.removeListener(tabCloseListener);
-                this.resetSignInButton();
-            }
-        };
-        
-        chrome.tabs.onRemoved.addListener(tabCloseListener);
-        
-        // Timeout after 5 minutes
-        setTimeout(() => {
-            chrome.runtime.onMessage.removeListener(authMessageListener);
-            chrome.tabs.onRemoved.removeListener(tabCloseListener);
-            this.resetSignInButton();
-        }, 5 * 60 * 1000);
-    }
-    
-    async handleAuthSuccess(sessionToken, userData) {
-        try {
-            // Store authentication data
-            await this.storeAuthData(sessionToken, userData);
-            
-            this.isAuthenticated = true;
-            this.elements.userEmail.textContent = userData.email;
-            this.updateAuthenticationStatus('ok');
-            this.showState('main');
-            this.showTab('emails');
-            
-            this.resetSignInButton();
-            
-        } catch (error) {
-            console.error('Error handling auth success:', error);
-            this.showError('Authentication completed but failed to store data. Please try again.');
-            this.resetSignInButton();
-        }
+        return apiClient.getBackendUrl();
     }
     
     handleAuthError(error, message) {
@@ -504,8 +358,16 @@ class GmailFollowUpApp {
             this.elements.emailsEmpty.classList.add('hidden');
             this.elements.emailsError.classList.add('hidden');
             
-            const gmailToken = await this.getGmailToken();
-            const emails = await this.fetchSentEmails(gmailToken);
+            // First try to sync emails from Gmail
+            try {
+                await apiClient.syncEmails();
+            } catch (syncError) {
+                console.warn('Email sync failed, using cached data:', syncError.message);
+            }
+            
+            // Get emails from backend
+            const result = await apiClient.getSentEmails(50);
+            const emails = result.emails || [];
             
             this.elements.emailsLoading.classList.add('hidden');
             
@@ -733,20 +595,42 @@ class GmailFollowUpApp {
 
     async loadSequences() {
         try {
+            this.showSequencesLoading(true);
             const sequences = await this.getSequences();
             this.renderSequencesList(sequences);
+            this.showSequencesLoading(false);
         } catch (error) {
             console.error('Failed to load sequences:', error);
+            this.showSequencesError(error.message);
+            this.showSequencesLoading(false);
         }
     }
 
     async getSequences() {
-        const result = await chrome.storage.local.get(['followUpSequences']);
-        return result.followUpSequences || [];
+        try {
+            const result = await apiClient.getSequences();
+            return result.sequences || [];
+        } catch (error) {
+            console.error('Failed to get sequences from backend:', error);
+            throw error;
+        }
     }
 
-    async saveSequences(sequences) {
-        await chrome.storage.local.set({ followUpSequences: sequences });
+    async saveSequence(sequenceData) {
+        try {
+            if (this.currentEditingSequence) {
+                // Update existing sequence
+                const result = await apiClient.updateSequence(this.currentEditingSequence.id, sequenceData);
+                return result.sequence;
+            } else {
+                // Create new sequence
+                const result = await apiClient.createSequence(sequenceData);
+                return result.sequence;
+            }
+        } catch (error) {
+            console.error('Failed to save sequence:', error);
+            throw error;
+        }
     }
 
     renderSequencesList(sequences) {
@@ -762,15 +646,14 @@ class GmailFollowUpApp {
                 <div class="sequence-item-header">
                     <h4 class="sequence-name">${this.escapeHtml(sequence.name)}</h4>
                     <div class="sequence-actions">
-                        <button class="sequence-edit-btn" data-index="${index}">Edit</button>
-                        <button class="sequence-delete-btn" data-index="${index}">Delete</button>
+                        <button class="sequence-edit-btn" data-id="${sequence.id}">Edit</button>
+                        <button class="sequence-delete-btn" data-id="${sequence.id}">Delete</button>
                     </div>
                 </div>
                 <div class="sequence-summary">
                     <span class="sequence-step-count">${sequence.steps.length} step${sequence.steps.length === 1 ? '' : 's'}</span>
-                    • Send on ${this.formatSendDays(sequence.sendWindow.days)}
-                    • ${sequence.sendWindow.startHour}:00 - ${sequence.sendWindow.endHour}:00
-                    • ${sequence.timezone || 'America/New_York'}
+                    ${sequence.description ? `• ${this.escapeHtml(sequence.description)}` : ''}
+                    • ${sequence.isActive ? 'Active' : 'Inactive'}
                 </div>
             </div>
         `).join('');
@@ -778,32 +661,40 @@ class GmailFollowUpApp {
         // Add event listeners
         this.elements.sequencesList.querySelectorAll('.sequence-edit-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                const index = parseInt(btn.dataset.index);
-                this.editSequence(sequences[index]);
+                const sequenceId = btn.dataset.id;
+                const sequence = sequences.find(s => s.id === sequenceId);
+                if (sequence) {
+                    this.editSequence(sequence);
+                }
             });
         });
         
         this.elements.sequencesList.querySelectorAll('.sequence-delete-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
-                const index = parseInt(btn.dataset.index);
-                if (confirm(`Are you sure you want to delete "${sequences[index].name}"?`)) {
-                    await this.deleteSequence(index);
+                const sequenceId = btn.dataset.id;
+                const sequence = sequences.find(s => s.id === sequenceId);
+                if (sequence && confirm(`Are you sure you want to delete "${sequence.name}"?`)) {
+                    await this.deleteSequence(sequenceId);
                 }
             });
         });
     }
 
     async updateSequenceDropdown() {
-        const sequences = await this.getSequences();
-        const select = this.elements.sequenceSelect;
-        
-        select.innerHTML = '<option value="">Select a sequence...</option>';
-        sequences.forEach(sequence => {
-            const option = document.createElement('option');
-            option.value = sequence.name;
-            option.textContent = `${sequence.name} (${sequence.steps.length} steps)`;
-            select.appendChild(option);
-        });
+        try {
+            const sequences = await this.getSequences();
+            const select = this.elements.sequenceSelect;
+            
+            select.innerHTML = '<option value="">Select a sequence...</option>';
+            sequences.forEach(sequence => {
+                const option = document.createElement('option');
+                option.value = sequence.id;
+                option.textContent = `${sequence.name} (${sequence.steps.length} steps)`;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Failed to update sequence dropdown:', error);
+        }
     }
 
     showSequenceModal(sequence = null) {
@@ -867,29 +758,18 @@ class GmailFollowUpApp {
                 return;
             }
             
-            const sequences = await this.getSequences();
-            
-            if (this.currentEditingSequence) {
-                const index = sequences.findIndex(seq => seq.name === this.currentEditingSequence.name);
-                if (index !== -1) {
-                    sequences[index] = sequence;
-                }
-            } else {
-                if (sequences.some(seq => seq.name === sequence.name)) {
-                    alert('A sequence with this name already exists. Please choose a different name.');
-                    return;
-                }
-                sequences.push(sequence);
-            }
-            
-            await this.saveSequences(sequences);
+            await this.saveSequence(sequence);
             this.hideSequenceModal();
             this.loadSequences();
             this.updateSequenceDropdown();
             
         } catch (error) {
             console.error('Failed to save sequence:', error);
-            alert('Failed to save sequence. Please try again.');
+            if (error.message.includes('name already exists')) {
+                alert('A sequence with this name already exists. Please choose a different name.');
+            } else {
+                alert('Failed to save sequence. Please try again.');
+            }
         }
     }
 
@@ -1030,6 +910,33 @@ class GmailFollowUpApp {
         });
     }
 
+    showSequencesLoading(show) {
+        const loadingEl = document.querySelector('#sequences-loading');
+        if (loadingEl) {
+            loadingEl.classList.toggle('hidden', !show);
+        }
+    }
+
+    showSequencesError(message) {
+        const errorEl = document.querySelector('#sequences-error');
+        const errorMessageEl = document.querySelector('#sequences-error-message');
+        if (errorEl && errorMessageEl) {
+            errorMessageEl.textContent = message;
+            errorEl.classList.remove('hidden');
+        }
+    }
+
+    async deleteSequence(sequenceId) {
+        try {
+            await apiClient.deleteSequence(sequenceId);
+            this.loadSequences();
+            this.updateSequenceDropdown();
+        } catch (error) {
+            console.error('Failed to delete sequence:', error);
+            alert('Failed to delete sequence. Please try again.');
+        }
+    }
+
     addVariant(stepDiv, variantText = '') {
         const variantsContainer = stepDiv.querySelector('.variants-container');
         const variantCount = variantsContainer.children.length;
@@ -1084,62 +991,32 @@ class GmailFollowUpApp {
     // ==========================================
 
     async enrollSelectedEmails() {
-        const selectedSequence = this.elements.sequenceSelect.value;
+        const selectedSequenceId = this.elements.sequenceSelect.value;
         const selectedEmailIds = Array.from(this.selectedEmails);
         
-        if (!selectedSequence || selectedEmailIds.length === 0) {
+        if (!selectedSequenceId || selectedEmailIds.length === 0) {
             return;
         }
         
         try {
-            const sequences = await this.getSequences();
-            const sequence = sequences.find(seq => seq.name === selectedSequence);
-            
-            if (!sequence) {
-                alert('Selected sequence not found. Please refresh and try again.');
-                return;
-            }
-            
             // Get selected reply mode from UI
             const replyModeRadio = document.querySelector('input[name="reply-mode"]:checked');
             const replyMode = replyModeRadio ? replyModeRadio.value : 'reply';
             
-            const enrollments = selectedEmailIds.map(emailId => {
+            const enrollments = [];
+            
+            for (const emailId of selectedEmailIds) {
                 const emailItem = document.querySelector(`[data-email-id="${emailId}"]`);
-                const originalEmailDate = emailItem.dataset.originalDate || new Date().toISOString();
                 
-                return {
-                    id: this.generateEnrollmentId(),
+                const enrollmentData = {
                     emailId: emailId,
-                    threadId: emailItem.dataset.threadId,
-                    subject: emailItem.dataset.subject,
-                    to: emailItem.dataset.to,
-                    cc: emailItem.dataset.cc || '', // Store CC recipients
-                    bcc: emailItem.dataset.bcc || '', // Store BCC recipients (for reference)
-                    replyMode: replyMode, // Store user's reply mode choice
-                    originalEmailDate: originalEmailDate,
-                    sequenceName: selectedSequence,
-                    sequence: sequence,
-                    enrolledAt: new Date().toISOString(),
-                    currentStep: 0,
-                    status: 'pending',
-                    statusReason: null,
-                    nextSendDate: this.calculateNextSendDate(sequence.steps[0], sequence.sendWindow, originalEmailDate),
-                    lastChecked: null,
-                    alarmId: null
+                    sequenceId: selectedSequenceId,
+                    replyMode: replyMode
                 };
-            });
-            
-            await this.saveEnrollments(enrollments);
-            
-            // Schedule initial sends for all enrollments
-            for (const enrollment of enrollments) {
-                await this.scheduleNextSend(enrollment);
+                
+                const result = await apiClient.createEnrollment(enrollmentData);
+                enrollments.push(result.enrollment);
             }
-            
-            // Update all enrollments in storage
-            const allEnrollments = await this.getEnrollments();
-            await chrome.storage.local.set({ emailEnrollments: allEnrollments });
             
             // Clear selections
             this.selectedEmails.clear();
@@ -1150,7 +1027,10 @@ class GmailFollowUpApp {
             this.elements.sequenceSelect.value = '';
             this.updateEnrollButton();
             
-            alert(`Successfully enrolled ${enrollments.length} email${enrollments.length === 1 ? '' : 's'} in "${selectedSequence}" sequence.`);
+            alert(`Successfully enrolled ${enrollments.length} email${enrollments.length === 1 ? '' : 's'} in follow-up sequence.`);
+            
+            // Refresh enrollments tab
+            this.loadEnrollments();
             
         } catch (error) {
             console.error('Failed to enroll emails:', error);
@@ -1158,37 +1038,30 @@ class GmailFollowUpApp {
         }
     }
 
-    async saveEnrollments(enrollments) {
-        const result = await chrome.storage.local.get(['emailEnrollments']);
-        const existingEnrollments = result.emailEnrollments || [];
-        const updatedEnrollments = [...existingEnrollments, ...enrollments];
-        await chrome.storage.local.set({ emailEnrollments: updatedEnrollments });
-    }
-
-    async getEnrollments() {
-        const result = await chrome.storage.local.get(['emailEnrollments']);
-        return result.emailEnrollments || [];
+    async getEnrollments(status = null) {
+        try {
+            const result = await apiClient.getEnrollments({ status });
+            return result.enrollments || [];
+        } catch (error) {
+            console.error('Failed to get enrollments from backend:', error);
+            throw error;
+        }
     }
 
     async loadEnrollments() {
         try {
-            const enrollments = await this.getEnrollments();
+            this.showEnrollmentsLoading(true);
             const statusFilter = this.elements.statusFilter.value;
             
-            let filteredEnrollments = enrollments;
-            if (statusFilter) {
-                if (statusFilter === 'paused-manual') {
-                    filteredEnrollments = enrollments.filter(e => e.status === 'paused' && e.statusReason === 'manual');
-                } else if (statusFilter === 'paused-reply') {
-                    filteredEnrollments = enrollments.filter(e => e.status === 'paused' && e.statusReason === 'reply');
-                } else {
-                    filteredEnrollments = enrollments.filter(e => e.status === statusFilter);
-                }
-            }
+            // Get filtered enrollments from backend
+            const enrollments = await this.getEnrollments(statusFilter);
             
-            this.renderEnrollmentsList(filteredEnrollments);
+            this.renderEnrollmentsList(enrollments);
+            this.showEnrollmentsLoading(false);
         } catch (error) {
             console.error('Failed to load enrollments:', error);
+            this.showEnrollmentsError(error.message);
+            this.showEnrollmentsLoading(false);
         }
     }
 
@@ -1249,71 +1122,56 @@ class GmailFollowUpApp {
     }
 
     async pauseEnrollment(enrollmentId) {
-        const enrollments = await this.getEnrollments();
-        const enrollment = enrollments.find(e => e.id === enrollmentId);
-        if (enrollment && this.canPause(enrollment)) {
-            // Cancel any existing alarm
-            if (enrollment.alarmId) {
-                chrome.alarms.clear(enrollment.alarmId);
-            }
-            
-            enrollment.status = 'paused';
-            enrollment.statusReason = 'manual';
-            enrollment.alarmId = null;
-            
-            await chrome.storage.local.set({ emailEnrollments: enrollments });
+        try {
+            await apiClient.pauseEnrollment(enrollmentId);
             this.loadEnrollments();
+        } catch (error) {
+            console.error('Failed to pause enrollment:', error);
+            alert('Failed to pause enrollment. Please try again.');
         }
     }
 
     async resumeEnrollment(enrollmentId) {
-        const enrollments = await this.getEnrollments();
-        const enrollment = enrollments.find(e => e.id === enrollmentId);
-        if (enrollment && this.canResume(enrollment)) {
-            enrollment.status = enrollment.currentStep === 0 ? 'pending' : 'active';
-            enrollment.statusReason = null;
-            
-            // Recalculate next send date from the original email date
-            const step = enrollment.sequence.steps[enrollment.currentStep];
-            enrollment.nextSendDate = this.calculateNextSendDate(step, enrollment.sequence.sendWindow, enrollment.originalEmailDate);
-            
-            // Schedule next alarm
-            await this.scheduleNextSend(enrollment);
-            
-            await chrome.storage.local.set({ emailEnrollments: enrollments });
+        try {
+            await apiClient.resumeEnrollment(enrollmentId);
             this.loadEnrollments();
-        }
-    }
-
-    async updateEnrollmentStatus(enrollmentId, status, statusReason = null) {
-        const enrollments = await this.getEnrollments();
-        const enrollment = enrollments.find(e => e.id === enrollmentId);
-        if (enrollment) {
-            enrollment.status = status;
-            enrollment.statusReason = statusReason;
-            await chrome.storage.local.set({ emailEnrollments: enrollments });
-            this.loadEnrollments();
+        } catch (error) {
+            console.error('Failed to resume enrollment:', error);
+            alert('Failed to resume enrollment. Please try again.');
         }
     }
 
     async removeEnrollment(enrollmentId) {
-        const enrollments = await this.getEnrollments();
-        const enrollment = enrollments.find(e => e.id === enrollmentId);
-        
-        // Cancel any existing alarm
-        if (enrollment && enrollment.alarmId) {
-            chrome.alarms.clear(enrollment.alarmId);
-            await chrome.storage.local.remove([`alarm_${enrollment.alarmId}`]);
+        try {
+            await apiClient.deleteEnrollment(enrollmentId);
+            this.loadEnrollments();
+        } catch (error) {
+            console.error('Failed to remove enrollment:', error);
+            alert('Failed to remove enrollment. Please try again.');
         }
-        
-        const updatedEnrollments = enrollments.filter(e => e.id !== enrollmentId);
-        await chrome.storage.local.set({ emailEnrollments: updatedEnrollments });
-        this.loadEnrollments();
     }
 
-    generateEnrollmentId() {
-        return 'enroll_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    showEnrollmentsLoading(show) {
+        const loadingEl = document.querySelector('#enrollments-loading');
+        if (loadingEl) {
+            loadingEl.classList.toggle('hidden', !show);
+        }
     }
+
+    showEnrollmentsError(message) {
+        const errorEl = document.querySelector('#enrollments-error');
+        const errorMessageEl = document.querySelector('#enrollments-error-message');
+        if (errorEl && errorMessageEl) {
+            errorMessageEl.textContent = message;
+            errorEl.classList.remove('hidden');
+        }
+    }
+
+    // Removed - replaced by apiClient.resumeEnrollment()
+
+    // Removed - enrollment management now handled by backend API
+
+    // Removed - backend generates unique UUIDs for enrollments
 
     calculateNextSendDate(step, sendWindow, baseDate = null) {
         const now = new Date();
@@ -1389,25 +1247,7 @@ class GmailFollowUpApp {
     // AUTOMATION & SCHEDULING
     // ==========================================
 
-    async scheduleNextSend(enrollment) {
-        const alarmId = `send_${enrollment.id}_${Date.now()}`;
-        const sendTime = new Date(enrollment.nextSendDate);
-        
-        // Create Chrome alarm
-        chrome.alarms.create(alarmId, { when: sendTime.getTime() });
-        
-        enrollment.alarmId = alarmId;
-        enrollment.status = 'active';
-        
-        // Store alarm info for background processing
-        await chrome.storage.local.set({
-            [`alarm_${alarmId}`]: {
-                enrollmentId: enrollment.id,
-                scheduledFor: enrollment.nextSendDate,
-                currentStep: enrollment.currentStep
-            }
-        });
-    }
+    // Removed - scheduling now handled by backend service
 
     async checkForReplies(enrollment) {
         try {
@@ -1460,14 +1300,15 @@ class GmailFollowUpApp {
      */
     async sendFollowUpEmail(enrollment, stepIndex) {
         try {
-            const result = await chrome.storage.local.get(['authToken', 'userEmail']);
-            if (!result.authToken) throw new Error('No auth token');
+            const gmailToken = await this.getGmailToken();
+            const userProfile = await this.getUserProfile();
+            if (!gmailToken) throw new Error('No Gmail token available');
 
             const step = enrollment.sequence.steps[stepIndex];
             const emailBody = this.prepareEmailBody(step, enrollment);
             
             // Get recipient list based on reply mode
-            const recipients = this.getRecipientsForReplyMode(enrollment, result.userEmail);
+            const recipients = this.getRecipientsForReplyMode(enrollment, userProfile.email);
             
             // Create the email message
             const email = [
@@ -1489,7 +1330,7 @@ class GmailFollowUpApp {
                 {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${result.authToken}`,
+                        'Authorization': `Bearer ${gmailToken}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
