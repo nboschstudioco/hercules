@@ -238,22 +238,32 @@ class GmailFollowUpApp {
     
     async waitForAuthResult(popup) {
         return new Promise((resolve, reject) => {
-            const startTime = Date.now();
             const timeout = 120000; // 2 minutes
             let messageReceived = false;
             
-            // Listen for messages from the popup
+            /**
+             * Authentication flow relies ONLY on postMessage events from backend success page.
+             * Cross-Origin Opener Policy (COOP) blocks popup.closed access in modern browsers
+             * during OAuth flows, so we cannot reliably poll popup state.
+             * 
+             * Success: Backend /auth/success page sends window.opener.postMessage with token
+             * Failure: Backend /auth/error page sends window.opener.postMessage with error
+             * Timeout: No message received within timeout period (user cancelled or network error)
+             */
+            
+            // Listen for messages from the popup - ONLY source of truth for auth status
             const messageListener = (event) => {
-                // Verify origin is our backend
+                // Verify origin is our backend for security
                 if (event.origin !== apiClient.getBackendUrl()) {
+                    console.log('Ignoring message from unknown origin:', event.origin);
                     return;
                 }
                 
-                console.log('Received message from popup:', event.data);
+                console.log('Received OAuth message from popup:', event.data);
                 
                 if (event.data.type === 'oauth_success') {
                     messageReceived = true;
-                    window.removeEventListener('message', messageListener);
+                    cleanup();
                     resolve({
                         success: true,
                         token: event.data.token,
@@ -261,35 +271,36 @@ class GmailFollowUpApp {
                     });
                 } else if (event.data.type === 'oauth_error') {
                     messageReceived = true;
-                    window.removeEventListener('message', messageListener);
+                    cleanup();
                     reject(new Error(event.data.message || event.data.error || 'Authentication failed'));
                 }
             };
             
             window.addEventListener('message', messageListener);
             
-            // Set up timeout
-            const timeoutId = setTimeout(() => {
+            // Cleanup function to remove listeners and close popup
+            const cleanup = () => {
                 window.removeEventListener('message', messageListener);
-                if (!messageReceived && !popup.closed) {
-                    popup.close();
-                }
-                reject(new Error('Authentication timed out'));
-            }, timeout);
-            
-            // Monitor popup closure
-            const checkClosed = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(checkClosed);
-                    clearTimeout(timeoutId);
-                    window.removeEventListener('message', messageListener);
-                    
-                    // Only treat as cancellation if no success message was received
-                    if (!messageReceived) {
-                        reject(new Error('Authentication cancelled by user'));
+                clearTimeout(timeoutId);
+                try {
+                    // Attempt to close popup, but don't rely on it due to COOP restrictions
+                    if (popup && !popup.closed) {
+                        popup.close();
                     }
+                } catch (error) {
+                    // COOP may block popup.closed access - this is expected and safe to ignore
+                    console.log('Cannot access popup.closed due to COOP policy (this is normal)');
                 }
-            }, 500);
+            };
+            
+            // Set up timeout - if no postMessage received, treat as cancellation/error
+            const timeoutId = setTimeout(() => {
+                cleanup();
+                if (!messageReceived) {
+                    console.log('Authentication timeout - no postMessage received from backend');
+                    reject(new Error('Authentication timed out or was cancelled. Please try again.'));
+                }
+            }, timeout);
         });
     }
     

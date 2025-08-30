@@ -1,0 +1,40 @@
+Cross-Origin-Opener-Policy blocks popup.closed – OAuth detection still unreliable
+
+Message:
+
+After your update, I still see the following browser error:
+
+text
+Cross-Origin-Opener-Policy policy would block the window.closed call.
+and the extension sometimes continues to show the "user did not approve access" error even after a successful OAuth.
+
+Please address the following for a truly robust and spec-compliant authentication flow:
+
+Do NOT rely solely on polling popup.closed:
+
+Modern browsers may block or give incorrect results for popup.closed when cross-origin navigation occurs (as is expected in OAuth). This is NOT a reliable way to determine success.
+
+Rely strictly on postMessage event:
+
+Only consider authentication successful if a message (via window.opener.postMessage) with the correct structure (type: 'oauth_success', plus token, etc.) is received by the extension from the popup.
+
+If the popup closes and NO postMessage was ever received, then (and only then) treat as cancellation/error.
+
+Remove/disable setInterval polling of popup.closed:
+
+This mechanism is not compatible with strict browser policies and leads to edge-case failures and security errors—use postMessage as the single source of success/failure.
+
+Error Handling/Diagnostics:
+
+If no postMessage is ever received, clearly differentiate/capture whether the popup navigated to your backend's /auth/success, or if the user really cancelled/denied consent.
+
+Add a clear browser log when popup.closed fails for cross-origin reasons (and surface via UI if no postMessage was seen).
+
+Acceptance:
+
+On a successful OAuth flow, postMessage is always received and extension authenticates, regardless of policy or popup closing (even if popup.closed can't be accessed).
+
+Only if the window is closed AND NO postMessage had been received, show the cancellation/auth error.
+
+Please also document (in code comments or in your reply) the final, tested approach for popup<->extension communication, specifying that postMessage is the only reliable mechanism per modern browser policies.
+
