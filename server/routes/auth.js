@@ -30,21 +30,28 @@ const SCOPES = [
  */
 router.get('/google/init', (req, res) => {
     try {
-        const state = uuidv4(); // CSRF protection
+        // Create stateless JWT-based state token (no session dependency)
+        const statePayload = {
+            nonce: uuidv4(),
+            timestamp: Date.now(),
+            type: 'oauth_state'
+        };
         
-        // Debug session info
-        console.log('OAuth init - session info:', {
-            sessionId: req.sessionID,
-            hasSession: !!req.session,
-            sessionBefore: req.session
-        });
+        // Sign the state token to prevent tampering
+        const state = jwt.sign(
+            statePayload,
+            process.env.JWT_SECRET || 'fallback-secret',
+            { 
+                expiresIn: '10m', // Short expiry for security
+                issuer: 'gmail-followup-backend',
+                audience: 'oauth-state'
+            }
+        );
         
-        req.session.oauthState = state;
-        
-        console.log('OAuth init - state saved:', {
-            generatedState: state,
-            sessionAfter: req.session,
-            sessionId: req.sessionID
+        console.log('OAuth init - stateless state created:', {
+            statePayload,
+            hasJWT: !!state,
+            tokenLength: state.length
         });
         
         const authUrl = oauth2Client.generateAuthUrl({
@@ -105,12 +112,32 @@ router.get('/google/callback', async (req, res) => {
             return res.redirect(`${baseUrl}/auth/error?error=${encodeURIComponent(error)}`);
         }
         
-        // Verify state parameter (CSRF protection)
-        if (!state || state !== req.session.oauthState) {
+        // Verify stateless JWT state parameter (CSRF protection)
+        if (!state) {
+            console.log('State validation failed: No state parameter received');
+            return res.redirect(`${baseUrl}/auth/error?error=missing_state`);
+        }
+        
+        try {
+            // Verify the JWT state token
+            const statePayload = jwt.verify(
+                state,
+                process.env.JWT_SECRET || 'fallback-secret',
+                {
+                    issuer: 'gmail-followup-backend',
+                    audience: 'oauth-state'
+                }
+            );
+            
+            console.log('State validation successful:', {
+                statePayload,
+                ageMinutes: (Date.now() - statePayload.timestamp) / (1000 * 60)
+            });
+            
+        } catch (stateError) {
             console.log('State validation failed:', {
-                receivedState: state,
-                sessionState: req.session.oauthState,
-                hasSession: !!req.session
+                error: stateError.message,
+                receivedState: state.substring(0, 50) + '...'
             });
             return res.redirect(`${baseUrl}/auth/error?error=invalid_state`);
         }
@@ -166,8 +193,7 @@ router.get('/google/callback', async (req, res) => {
             }
         );
         
-        // Clear OAuth state
-        delete req.session.oauthState;
+        // State token is stateless - no cleanup needed
         
         // Redirect to success page with token
         const successUrl = `${baseUrl}/auth/success?token=${sessionToken}&user=${encodeURIComponent(JSON.stringify({
