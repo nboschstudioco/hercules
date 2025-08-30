@@ -381,8 +381,15 @@ router.get('/success', (req, res) => {
             <p>You can now close this tab and return to your extension.</p>
         </div>
         <script>
-            // Send success message to extension sidepanel via window.opener
+            // COMPREHENSIVE OAUTH SUCCESS MESSAGE DEBUGGING
             // This is the ONLY reliable method for OAuth popup-to-extension communication
+            
+            const timestamp = new Date().toISOString();
+            console.log('Backend [' + timestamp + ']: /auth/success page loaded');
+            console.log('Backend [' + timestamp + ']: Current window.location:', window.location.href);
+            console.log('Backend [' + timestamp + ']: window.opener exists:', !!window.opener);
+            console.log('Backend [' + timestamp + ']: window.opener.closed:', window.opener ? window.opener.closed : 'N/A');
+            
             try {
                 const authData = {
                     type: 'oauth_success',
@@ -390,20 +397,27 @@ router.get('/success', (req, res) => {
                     user: ${user ? `JSON.parse(decodeURIComponent('${user}'))` : 'null'}
                 };
                 
-                console.log('🔐 Backend: Preparing to send auth success data to extension:', authData);
+                console.log('Backend [' + timestamp + ']: Preparing to send auth success data:', authData);
+                console.log('Backend [' + timestamp + ']: Token length:', authData.token?.length);
+                console.log('Backend [' + timestamp + ']: User email:', authData.user?.email);
                 
                 // Send message to opener window (extension sidepanel)
                 if (window.opener && !window.opener.closed) {
+                    console.log('Backend [' + timestamp + ']: Sending postMessage to window.opener with target origin *');
                     window.opener.postMessage(authData, '*');
-                    console.log('✅ Backend: Auth success message sent to extension via window.opener.postMessage');
+                    console.log('Backend [' + timestamp + ']: postMessage SENT successfully to extension');
                     
                     // Wait longer before closing to ensure message delivery
                     setTimeout(() => {
-                        console.log('🚪 Backend: Closing OAuth popup after successful message delivery');
+                        const closeTimestamp = new Date().toISOString();
+                        console.log('Backend [' + closeTimestamp + ']: Closing OAuth popup after 1.5s delay for message delivery');
                         window.close();
                     }, 1500);
                 } else {
-                    console.error('❌ Backend: No opener window found or opener is closed');
+                    console.error('Backend [' + timestamp + ']: Cannot send message - opener not available:', {
+                        openerExists: !!window.opener,
+                        openerClosed: window.opener ? window.opener.closed : 'N/A'
+                    });
                     // Still close the popup even if we can't send the message
                     setTimeout(() => {
                         window.close();
@@ -411,7 +425,8 @@ router.get('/success', (req, res) => {
                 }
                 
             } catch (error) {
-                console.error('❌ Backend: Error sending auth success message:', error);
+                console.error('Backend [' + timestamp + ']: Error sending auth success message:', error);
+                console.error('Backend [' + timestamp + ']: Error details:', error.message, error.stack);
                 // Close popup even on error
                 setTimeout(() => {
                     window.close();
@@ -470,7 +485,14 @@ router.get('/error', (req, res) => {
             <p>Please close this tab and try again.</p>
         </div>
         <script>
-            // Send error message to extension sidepanel via window.opener
+            // COMPREHENSIVE OAUTH ERROR MESSAGE DEBUGGING
+            
+            const timestamp = new Date().toISOString();
+            console.log('Backend [' + timestamp + ']: /auth/error page loaded');
+            console.log('Backend [' + timestamp + ']: Current window.location:', window.location.href);
+            console.log('Backend [' + timestamp + ']: window.opener exists:', !!window.opener);
+            console.log('Backend [' + timestamp + ']: window.opener.closed:', window.opener ? window.opener.closed : 'N/A');
+            
             try {
                 const errorData = {
                     type: 'oauth_error',
@@ -478,23 +500,29 @@ router.get('/error', (req, res) => {
                     message: 'Authentication failed'
                 };
                 
-                console.log('🔐 Backend: Sending auth error data to extension:', errorData);
+                console.log('Backend [' + timestamp + ']: Preparing to send auth error data:', errorData);
                 
                 // Send message to opener window (extension sidepanel)
                 if (window.opener && !window.opener.closed) {
+                    console.log('Backend [' + timestamp + ']: Sending error postMessage to window.opener with target origin *');
                     window.opener.postMessage(errorData, '*');
-                    console.log('❌ Backend: Auth error message sent to extension via window.opener.postMessage');
+                    console.log('Backend [' + timestamp + ']: Error postMessage SENT successfully to extension');
                 } else {
-                    console.error('❌ Backend: No opener window found for error message');
+                    console.error('Backend [' + timestamp + ']: Cannot send error message - opener not available:', {
+                        openerExists: !!window.opener,
+                        openerClosed: window.opener ? window.opener.closed : 'N/A'
+                    });
                 }
                 
             } catch (error) {
-                console.error('❌ Backend: Error sending auth error message:', error);
+                console.error('Backend [' + timestamp + ']: Error sending auth error message:', error);
+                console.error('Backend [' + timestamp + ']: Error details:', error.message, error.stack);
             }
             
             // Close popup after delay to ensure message delivery
             setTimeout(() => {
-                console.log('🚪 Backend: Closing OAuth error popup');
+                const closeTimestamp = new Date().toISOString();
+                console.log('Backend [' + closeTimestamp + ']: Closing OAuth error popup after 2s delay');
                 window.close();
             }, 2000);
         </script>

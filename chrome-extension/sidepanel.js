@@ -265,19 +265,30 @@ class GmailFollowUpApp {
             
             console.log('🔐 Extension: Starting OAuth flow, waiting for postMessage from backend...');
             
-            // Listen for messages from the popup - SOLE source of truth for auth status
+            // Listen for ALL messages - comprehensive debugging to trace message flow
             const messageListener = (event) => {
-                // Verify origin is our backend for security
+                const timestamp = new Date().toISOString();
                 const backendUrl = apiClient.getBackendUrl();
+                
+                // Log EVERY message received for debugging
+                console.log(`🔍 Extension [${timestamp}]: Received message event:`, {
+                    origin: event.origin,
+                    expectedOrigin: backendUrl,
+                    data: event.data,
+                    source: event.source,
+                    originMatches: event.origin === backendUrl
+                });
+                
+                // Verify origin is our backend for security
                 if (event.origin !== backendUrl) {
-                    console.log('🔐 Extension: Ignoring message from unknown origin:', event.origin, 'expected:', backendUrl);
+                    console.log(`🚫 Extension [${timestamp}]: REJECTING message from origin:`, event.origin, 'expected:', backendUrl);
                     return;
                 }
                 
-                console.log('✅ Extension: Received OAuth message from backend popup:', event.data);
+                console.log(`✅ Extension [${timestamp}]: ACCEPTING message from correct origin:`, event.data);
                 
                 if (event.data.type === 'oauth_success') {
-                    console.log('🎉 Extension: OAuth SUCCESS - processing authentication');
+                    console.log(`🎉 Extension [${timestamp}]: OAuth SUCCESS - processing authentication with token:`, event.data.token?.substring(0, 20) + '...');
                     messageReceived = true;
                     cleanup();
                     resolve({
@@ -286,19 +297,25 @@ class GmailFollowUpApp {
                         user: event.data.user
                     });
                 } else if (event.data.type === 'oauth_error') {
-                    console.log('❌ Extension: OAuth ERROR received from backend');
+                    console.log(`❌ Extension [${timestamp}]: OAuth ERROR received from backend:`, event.data.error);
                     messageReceived = true;
                     cleanup();
                     reject(new Error(event.data.message || event.data.error || 'Authentication failed'));
+                } else {
+                    console.log(`❓ Extension [${timestamp}]: Unknown message type:`, event.data.type);
                 }
             };
             
             window.addEventListener('message', messageListener);
-            console.log('🔐 Extension: Message listener added for OAuth communication');
+            const timestamp = new Date().toISOString();
+            console.log(`🔐 Extension [${timestamp}]: Message listener ATTACHED for OAuth communication`);
+            console.log(`🔐 Extension [${timestamp}]: Expecting messages from origin:`, apiClient.getBackendUrl());
+            console.log(`🔐 Extension [${timestamp}]: Popup opened to:`, authDetails.authUrl);
             
             // Cleanup function to remove listeners
             const cleanup = () => {
-                console.log('🧹 Extension: Cleaning up OAuth listeners');
+                const timestamp = new Date().toISOString();
+                console.log(`🧹 Extension [${timestamp}]: Cleaning up OAuth listeners`);
                 window.removeEventListener('message', messageListener);
                 if (timeoutId) {
                     clearTimeout(timeoutId);
@@ -307,16 +324,20 @@ class GmailFollowUpApp {
             
             // Set up timeout - ONLY trigger if no postMessage received
             timeoutId = setTimeout(() => {
+                const timestamp = new Date().toISOString();
                 cleanup();
                 if (!messageReceived) {
-                    console.log('⏰ Extension: Authentication timeout - no postMessage received from backend within 2 minutes');
+                    console.log(`⏰ Extension [${timestamp}]: AUTHENTICATION TIMEOUT - no postMessage received from backend within 2 minutes`);
+                    console.log(`⏰ Extension [${timestamp}]: Expected message from origin:`, apiClient.getBackendUrl());
+                    console.log(`⏰ Extension [${timestamp}]: This indicates popup may have closed without reaching /auth/success`);
                     reject(new Error('Authentication timed out or was cancelled. Please try again.'));
                 } else {
-                    console.log('✅ Extension: Message was received, timeout cleanup only');
+                    console.log(`✅ Extension [${timestamp}]: Message was received, timeout cleanup only`);
                 }
             }, timeout);
             
-            console.log('🔐 Extension: OAuth timeout set for', timeout / 1000, 'seconds');
+            const timestamp2 = new Date().toISOString();
+            console.log(`🔐 Extension [${timestamp2}]: OAuth timeout set for`, timeout / 1000, 'seconds');
         });
     }
     
