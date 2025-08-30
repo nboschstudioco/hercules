@@ -6,6 +6,13 @@ require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
+const emailRoutes = require('./routes/emails');
+const sequenceRoutes = require('./routes/sequences');
+const enrollmentRoutes = require('./routes/enrollments');
+const scheduleRoutes = require('./routes/schedules');
+const analyticsRoutes = require('./routes/analytics');
+const syncRoutes = require('./routes/sync');
+const healthRoutes = require('./routes/health');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,18 +50,16 @@ app.use(session({
     }
 }));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-    });
-});
-
 // API routes
 app.use('/auth', authRoutes);
 app.use('/user', userRoutes);
+app.use('/emails', emailRoutes);
+app.use('/sequences', sequenceRoutes);
+app.use('/enrollments', enrollmentRoutes);
+app.use('/schedules', scheduleRoutes);
+app.use('/analytics', analyticsRoutes);
+app.use('/sync', syncRoutes);
+app.use('/health', healthRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

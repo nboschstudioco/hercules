@@ -1,21 +1,18 @@
 const express = require('express');
 const { google } = require('googleapis');
+const database = require('../database');
 const router = express.Router();
 
 // Import auth middleware
 const { authenticateToken } = require('./auth');
 
-// In-memory storage (same as auth.js - replace with database)
-const users = new Map();
-const tokens = new Map();
-
 /**
  * Get user profile information
  */
-router.get('/profile', authenticateToken, (req, res) => {
+router.get('/profile', authenticateToken, async (req, res) => {
     try {
         const { userId } = req.user;
-        const user = users.get(userId);
+        const user = await database.getUserById(userId);
         
         if (!user) {
             return res.status(404).json({
@@ -31,8 +28,8 @@ router.get('/profile', authenticateToken, (req, res) => {
                 email: user.email,
                 name: user.name,
                 picture: user.picture,
-                createdAt: user.createdAt,
-                lastLoginAt: user.lastLoginAt
+                createdAt: user.created_at,
+                lastLoginAt: user.last_login_at
             }
         });
         
@@ -52,7 +49,7 @@ router.get('/profile', authenticateToken, (req, res) => {
 router.get('/gmail-token', authenticateToken, async (req, res) => {
     try {
         const { userId } = req.user;
-        const userTokens = tokens.get(userId);
+        const userTokens = await database.getTokens(userId);
         
         if (!userTokens) {
             return res.status(404).json({
@@ -62,10 +59,10 @@ router.get('/gmail-token', authenticateToken, async (req, res) => {
         }
         
         // Check if token needs refreshing
-        const isExpired = userTokens.expiryDate && 
-            new Date().getTime() > (userTokens.expiryDate - 5 * 60 * 1000); // 5 min buffer
+        const isExpired = userTokens.expiry_date && 
+            new Date().getTime() > (userTokens.expiry_date - 5 * 60 * 1000); // 5 min buffer
         
-        if (isExpired && userTokens.refreshToken) {
+        if (isExpired && userTokens.refresh_token) {
             // Refresh the token
             const oauth2Client = new google.auth.OAuth2(
                 process.env.GOOGLE_CLIENT_ID,
@@ -74,26 +71,19 @@ router.get('/gmail-token', authenticateToken, async (req, res) => {
             );
             
             oauth2Client.setCredentials({
-                access_token: userTokens.accessToken,
-                refresh_token: userTokens.refreshToken
+                access_token: userTokens.access_token,
+                refresh_token: userTokens.refresh_token
             });
             
             try {
                 const { credentials } = await oauth2Client.refreshAccessToken();
                 
                 // Update stored tokens
-                const updatedTokens = {
-                    ...userTokens,
+                await database.saveTokens(userId, {
                     accessToken: credentials.access_token,
-                    expiryDate: credentials.expiry_date,
-                    updatedAt: new Date().toISOString()
-                };
-                
-                if (credentials.refresh_token) {
-                    updatedTokens.refreshToken = credentials.refresh_token;
-                }
-                
-                tokens.set(userId, updatedTokens);
+                    refreshToken: credentials.refresh_token || userTokens.refresh_token,
+                    expiryDate: credentials.expiry_date
+                });
                 
                 return res.json({
                     success: true,
@@ -115,9 +105,9 @@ router.get('/gmail-token', authenticateToken, async (req, res) => {
         // Return current valid token
         res.json({
             success: true,
-            accessToken: userTokens.accessToken,
-            expiresAt: userTokens.expiryDate ? 
-                new Date(userTokens.expiryDate).toISOString() : null,
+            accessToken: userTokens.access_token,
+            expiresAt: userTokens.expiry_date ? 
+                new Date(userTokens.expiry_date).toISOString() : null,
             refreshed: false
         });
         
@@ -133,44 +123,7 @@ router.get('/gmail-token', authenticateToken, async (req, res) => {
 /**
  * Update user preferences
  */
-router.put('/preferences', authenticateToken, (req, res) => {
-    try {
-        const { userId } = req.user;
-        const { timezone, notifications } = req.body;
-        
-        const user = users.get(userId);
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                error: 'User not found'
-            });
-        }
-        
-        // Update user preferences
-        const updatedUser = {
-            ...user,
-            preferences: {
-                timezone: timezone || user.preferences?.timezone,
-                notifications: notifications !== undefined ? 
-                    notifications : user.preferences?.notifications
-            },
-            updatedAt: new Date().toISOString()
-        };
-        
-        users.set(userId, updatedUser);
-        
-        res.json({
-            success: true,
-            preferences: updatedUser.preferences
-        });
-        
-    } catch (error) {
-        console.error('Update preferences error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to update preferences'
-        });
-    }
-});
+// Note: User preferences will be implemented later if needed
+// For now, removed this endpoint as it's not in the Step 3 requirements
 
 module.exports = router;

@@ -1,0 +1,316 @@
+const express = require('express');
+const { google } = require('googleapis');
+const database = require('../database');
+const router = express.Router();
+
+// Import auth middleware
+const { authenticateToken } = require('./auth');
+
+/**
+ * Get recent sent emails
+ * GET /emails/sent
+ */
+router.get('/sent', authenticateToken, async (req, res) => {
+    try {
+        const { userId } = req.user;
+        const limit = parseInt(req.query.limit) || 50;
+        
+        const emails = await database.getEmailsByUser(userId, limit);
+        
+        // Parse JSON fields
+        const processedEmails = emails.map(email => ({
+            id: email.id,
+            gmailId: email.gmail_id,
+            threadId: email.thread_id,
+            subject: email.subject,
+            fromEmail: email.from_email,
+            toEmails: JSON.parse(email.to_emails || '[]'),
+            ccEmails: JSON.parse(email.cc_emails || '[]'),
+            bccEmails: JSON.parse(email.bcc_emails || '[]'),
+            bodyText: email.body_text,
+            bodyHtml: email.body_html,
+            sentAt: email.sent_at,
+            hasReply: email.has_reply,
+            replyCheckedAt: email.reply_checked_at,
+            createdAt: email.created_at,
+            updatedAt: email.updated_at
+        }));
+        
+        res.json({
+            success: true,
+            emails: processedEmails,
+            count: processedEmails.length
+        });
+        
+    } catch (error) {
+        console.error('Get sent emails error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get sent emails'
+        });
+    }
+});
+
+/**
+ * Get specific sent email by ID
+ * GET /emails/sent/{emailId}
+ */
+router.get('/sent/:emailId', authenticateToken, async (req, res) => {
+    try {
+        const { emailId } = req.params;
+        const { userId } = req.user;
+        
+        const email = await database.getEmailById(emailId);
+        
+        if (!email) {
+            return res.status(404).json({
+                success: false,
+                error: 'Email not found'
+            });
+        }
+        
+        // Verify user owns this email
+        if (email.user_id !== userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Access denied'
+            });
+        }
+        
+        // Parse JSON fields and format response
+        const processedEmail = {
+            id: email.id,
+            gmailId: email.gmail_id,
+            threadId: email.thread_id,
+            subject: email.subject,
+            fromEmail: email.from_email,
+            toEmails: JSON.parse(email.to_emails || '[]'),
+            ccEmails: JSON.parse(email.cc_emails || '[]'),
+            bccEmails: JSON.parse(email.bcc_emails || '[]'),
+            bodyText: email.body_text,
+            bodyHtml: email.body_html,
+            sentAt: email.sent_at,
+            hasReply: email.has_reply,
+            replyCheckedAt: email.reply_checked_at,
+            createdAt: email.created_at,
+            updatedAt: email.updated_at
+        };
+        
+        res.json({
+            success: true,
+            email: processedEmail
+        });
+        
+    } catch (error) {
+        console.error('Get email by ID error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get email'
+        });
+    }
+});
+
+/**
+ * Trigger Gmail inbox sync
+ * POST /emails/sync
+ */
+router.post('/sync', authenticateToken, async (req, res) => {
+    try {
+        const { userId } = req.user;
+        
+        // Get user's Gmail token
+        const userTokens = await database.getTokens(userId);
+        if (!userTokens) {
+            return res.status(401).json({
+                success: false,
+                error: 'No Gmail access token found'
+            });
+        }
+        
+        // Set up Gmail API client
+        const auth = new google.auth.OAuth2(
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_CLIENT_SECRET,
+            process.env.GOOGLE_REDIRECT_URI
+        );
+        
+        auth.setCredentials({
+            access_token: userTokens.access_token,
+            refresh_token: userTokens.refresh_token
+        });
+        
+        const gmail = google.gmail({ version: 'v1', auth });
+        
+        // Get recent sent emails from Gmail
+        const response = await gmail.users.messages.list({
+            userId: 'me',
+            q: 'in:sent',
+            maxResults: 50
+        });
+        
+        let syncedCount = 0;
+        
+        if (response.data.messages) {
+            for (const message of response.data.messages) {
+                try {
+                    // Get full message details
+                    const messageDetails = await gmail.users.messages.get({
+                        userId: 'me',
+                        id: message.id,
+                        format: 'full'
+                    });
+                    
+                    const headers = messageDetails.data.payload.headers;
+                    const subject = headers.find(h => h.name === 'Subject')?.value || '';
+                    const fromEmail = headers.find(h => h.name === 'From')?.value || '';
+                    const toEmails = headers.find(h => h.name === 'To')?.value?.split(',').map(e => e.trim()) || [];
+                    const ccEmails = headers.find(h => h.name === 'Cc')?.value?.split(',').map(e => e.trim()) || [];
+                    const bccEmails = headers.find(h => h.name === 'Bcc')?.value?.split(',').map(e => e.trim()) || [];
+                    const sentDate = headers.find(h => h.name === 'Date')?.value || '';
+                    
+                    // Extract body text (simplified)
+                    let bodyText = '';
+                    let bodyHtml = '';
+                    if (messageDetails.data.payload.body?.data) {
+                        bodyText = Buffer.from(messageDetails.data.payload.body.data, 'base64').toString();
+                    }
+                    
+                    // Check if this email already exists
+                    const existingEmail = await database.get(
+                        'SELECT id FROM emails WHERE gmail_id = ? AND user_id = ?',
+                        [message.id, userId]
+                    );
+                    
+                    if (!existingEmail) {
+                        // Create new email record
+                        await database.createEmail({
+                            userId,
+                            gmailId: message.id,
+                            threadId: messageDetails.data.threadId,
+                            subject,
+                            fromEmail,
+                            toEmails,
+                            ccEmails,
+                            bccEmails,
+                            bodyText,
+                            bodyHtml,
+                            sentAt: new Date(sentDate).toISOString()
+                        });
+                        syncedCount++;
+                    }
+                    
+                } catch (emailError) {
+                    console.error('Error syncing individual email:', emailError);
+                    // Continue with other emails
+                }
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: 'Gmail sync completed',
+            syncedCount,
+            totalMessages: response.data.messages?.length || 0
+        });
+        
+    } catch (error) {
+        console.error('Gmail sync error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to sync Gmail'
+        });
+    }
+});
+
+/**
+ * Check for replies to specific emails
+ * POST /emails/check-replies
+ */
+router.post('/check-replies', authenticateToken, async (req, res) => {
+    try {
+        const { userId } = req.user;
+        const { emailIds } = req.body; // Array of email IDs to check
+        
+        if (!emailIds || !Array.isArray(emailIds)) {
+            return res.status(400).json({
+                success: false,
+                error: 'emailIds array is required'
+            });
+        }
+        
+        // Get user's Gmail token
+        const userTokens = await database.getTokens(userId);
+        if (!userTokens) {
+            return res.status(401).json({
+                success: false,
+                error: 'No Gmail access token found'
+            });
+        }
+        
+        // Set up Gmail API client
+        const auth = new google.auth.OAuth2(
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_CLIENT_SECRET,
+            process.env.GOOGLE_REDIRECT_URI
+        );
+        
+        auth.setCredentials({
+            access_token: userTokens.access_token,
+            refresh_token: userTokens.refresh_token
+        });
+        
+        const gmail = google.gmail({ version: 'v1', auth });
+        
+        let checkedCount = 0;
+        let repliesFound = 0;
+        
+        for (const emailId of emailIds) {
+            try {
+                const email = await database.getEmailById(emailId);
+                
+                if (!email || email.user_id !== userId) {
+                    continue; // Skip if email not found or doesn't belong to user
+                }
+                
+                // Check for replies in the thread
+                const threadResponse = await gmail.users.threads.get({
+                    userId: 'me',
+                    id: email.thread_id
+                });
+                
+                // Count messages in thread (more than 1 means there are replies)
+                const messageCount = threadResponse.data.messages?.length || 1;
+                const hasReply = messageCount > 1;
+                
+                // Update email reply status
+                await database.updateEmailReplyStatus(emailId, hasReply);
+                
+                if (hasReply) {
+                    repliesFound++;
+                }
+                
+                checkedCount++;
+                
+            } catch (emailError) {
+                console.error('Error checking replies for email:', emailId, emailError);
+                // Continue with other emails
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: 'Reply check completed',
+            checkedCount,
+            repliesFound
+        });
+        
+    } catch (error) {
+        console.error('Check replies error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to check replies'
+        });
+    }
+});
+
+module.exports = router;

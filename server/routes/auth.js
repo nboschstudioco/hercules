@@ -2,11 +2,8 @@ const express = require('express');
 const { google } = require('googleapis');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const database = require('../database');
 const router = express.Router();
-
-// In-memory storage for demo (replace with database in production)
-const users = new Map();
-const tokens = new Map();
 
 // Google OAuth2 client
 const oauth2Client = new google.auth.OAuth2(
@@ -151,32 +148,28 @@ router.get('/google/callback', async (req, res) => {
         const { data: userInfo } = await oauth2.userinfo.get();
         
         // Create or update user record
-        const userId = uuidv4();
-        const user = {
-            id: userId,
-            email: userInfo.email,
-            name: userInfo.name,
-            picture: userInfo.picture,
-            gmailId: userInfo.id,
-            createdAt: new Date().toISOString(),
-            lastLoginAt: new Date().toISOString()
-        };
+        let user = await database.getUserByEmail(userInfo.email);
+        let userId;
         
-        // Store user data
-        users.set(userId, user);
+        if (user) {
+            // Update existing user's last login
+            userId = user.id;
+            await database.updateUserLastLogin(userId);
+        } else {
+            // Create new user
+            userId = await database.createUser({
+                email: userInfo.email,
+                name: userInfo.name,
+                picture: userInfo.picture
+            });
+        }
         
         // Store OAuth tokens securely
-        const tokenData = {
+        await database.saveTokens(userId, {
             accessToken: oauthTokens.access_token,
             refreshToken: oauthTokens.refresh_token,
-            expiryDate: oauthTokens.expiry_date,
-            scope: oauthTokens.scope,
-            tokenType: oauthTokens.token_type,
-            userId: userId,
-            createdAt: new Date().toISOString()
-        };
-        
-        tokens.set(userId, tokenData);
+            expiryDate: oauthTokens.expiry_date
+        });
         
         // Generate JWT session token for extension
         const sessionToken = jwt.sign(
@@ -195,11 +188,14 @@ router.get('/google/callback', async (req, res) => {
         
         // State token is stateless - no cleanup needed
         
+        // Get updated user data
+        const updatedUser = await database.getUserById(userId);
+        
         // Redirect to success page with token
         const successUrl = `${baseUrl}/auth/success?token=${sessionToken}&user=${encodeURIComponent(JSON.stringify({
             id: userId,
-            email: user.email,
-            name: user.name
+            email: updatedUser.email,
+            name: updatedUser.name
         }))}`;
         
         console.log('OAuth success, redirecting to:', successUrl);
@@ -217,9 +213,9 @@ router.get('/google/callback', async (req, res) => {
 router.post('/refresh', authenticateToken, async (req, res) => {
     try {
         const { userId } = req.user;
-        const userTokens = tokens.get(userId);
+        const userTokens = await database.getTokens(userId);
         
-        if (!userTokens || !userTokens.refreshToken) {
+        if (!userTokens || !userTokens.refresh_token) {
             return res.status(401).json({
                 success: false,
                 error: 'No refresh token available'
@@ -228,26 +224,19 @@ router.post('/refresh', authenticateToken, async (req, res) => {
         
         // Set up OAuth client with stored tokens
         oauth2Client.setCredentials({
-            access_token: userTokens.accessToken,
-            refresh_token: userTokens.refreshToken
+            access_token: userTokens.access_token,
+            refresh_token: userTokens.refresh_token
         });
         
         // Refresh the access token
         const { credentials } = await oauth2Client.refreshAccessToken();
         
         // Update stored tokens
-        const updatedTokens = {
-            ...userTokens,
+        await database.saveTokens(userId, {
             accessToken: credentials.access_token,
-            expiryDate: credentials.expiry_date,
-            updatedAt: new Date().toISOString()
-        };
-        
-        if (credentials.refresh_token) {
-            updatedTokens.refreshToken = credentials.refresh_token;
-        }
-        
-        tokens.set(userId, updatedTokens);
+            refreshToken: credentials.refresh_token || userTokens.refresh_token,
+            expiryDate: credentials.expiry_date
+        });
         
         res.json({
             success: true,
@@ -266,11 +255,11 @@ router.post('/refresh', authenticateToken, async (req, res) => {
 /**
  * Check authentication status
  */
-router.get('/status', authenticateToken, (req, res) => {
+router.get('/status', authenticateToken, async (req, res) => {
     try {
         const { userId } = req.user;
-        const user = users.get(userId);
-        const userTokens = tokens.get(userId);
+        const user = await database.getUserById(userId);
+        const userTokens = await database.getTokens(userId);
         
         if (!user || !userTokens) {
             return res.status(401).json({
@@ -279,8 +268,8 @@ router.get('/status', authenticateToken, (req, res) => {
             });
         }
         
-        const isTokenExpired = userTokens.expiryDate && 
-            new Date().getTime() > userTokens.expiryDate;
+        const isTokenExpired = userTokens.expiry_date && 
+            new Date().getTime() > userTokens.expiry_date;
         
         res.json({
             success: true,
@@ -291,11 +280,11 @@ router.get('/status', authenticateToken, (req, res) => {
                 name: user.name
             },
             tokenStatus: {
-                hasAccessToken: !!userTokens.accessToken,
-                hasRefreshToken: !!userTokens.refreshToken,
+                hasAccessToken: !!userTokens.access_token,
+                hasRefreshToken: !!userTokens.refresh_token,
                 isExpired: isTokenExpired,
-                expiresAt: userTokens.expiryDate ? 
-                    new Date(userTokens.expiryDate).toISOString() : null
+                expiresAt: userTokens.expiry_date ? 
+                    new Date(userTokens.expiry_date).toISOString() : null
             }
         });
         
@@ -314,13 +303,13 @@ router.get('/status', authenticateToken, (req, res) => {
 router.post('/logout', authenticateToken, async (req, res) => {
     try {
         const { userId } = req.user;
-        const userTokens = tokens.get(userId);
+        const userTokens = await database.getTokens(userId);
         
         // Revoke Google tokens if they exist
-        if (userTokens && userTokens.accessToken) {
+        if (userTokens && userTokens.access_token) {
             oauth2Client.setCredentials({
-                access_token: userTokens.accessToken,
-                refresh_token: userTokens.refreshToken
+                access_token: userTokens.access_token,
+                refresh_token: userTokens.refresh_token
             });
             
             try {
@@ -331,8 +320,8 @@ router.post('/logout', authenticateToken, async (req, res) => {
             }
         }
         
-        // Remove stored tokens and user session
-        tokens.delete(userId);
+        // Remove stored tokens
+        await database.deleteTokens(userId);
         
         res.json({
             success: true,
