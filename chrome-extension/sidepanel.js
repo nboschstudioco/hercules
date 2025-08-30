@@ -240,28 +240,44 @@ class GmailFollowUpApp {
         return new Promise((resolve, reject) => {
             const timeout = 120000; // 2 minutes
             let messageReceived = false;
+            let timeoutId;
             
             /**
-             * Authentication flow relies ONLY on postMessage events from backend success page.
-             * Cross-Origin Opener Policy (COOP) blocks popup.closed access in modern browsers
-             * during OAuth flows, so we cannot reliably poll popup state.
+             * ROBUST OAUTH AUTHENTICATION FLOW
              * 
-             * Success: Backend /auth/success page sends window.opener.postMessage with token
-             * Failure: Backend /auth/error page sends window.opener.postMessage with error
-             * Timeout: No message received within timeout period (user cancelled or network error)
+             * This implementation relies EXCLUSIVELY on postMessage events from the backend success page.
+             * Cross-Origin Opener Policy (COOP) blocks popup.closed access in modern browsers
+             * during OAuth flows, making polling unreliable and causing security errors.
+             * 
+             * Authentication Success Flow:
+             * 1. Backend /auth/success page sends window.opener.postMessage({ type: 'oauth_success', token, user })
+             * 2. Extension receives message, verifies origin, and completes authentication
+             * 3. Backend waits 1.5s before closing popup to ensure message delivery
+             * 
+             * Authentication Failure Flow:
+             * 1. Backend /auth/error page sends window.opener.postMessage({ type: 'oauth_error', error })
+             * 2. Extension receives message and shows appropriate error
+             * 
+             * Timeout/Cancellation Flow:
+             * 1. No postMessage received within timeout period
+             * 2. Extension treats as user cancellation or network error
              */
             
-            // Listen for messages from the popup - ONLY source of truth for auth status
+            console.log('🔐 Extension: Starting OAuth flow, waiting for postMessage from backend...');
+            
+            // Listen for messages from the popup - SOLE source of truth for auth status
             const messageListener = (event) => {
                 // Verify origin is our backend for security
-                if (event.origin !== apiClient.getBackendUrl()) {
-                    console.log('Ignoring message from unknown origin:', event.origin);
+                const backendUrl = apiClient.getBackendUrl();
+                if (event.origin !== backendUrl) {
+                    console.log('🔐 Extension: Ignoring message from unknown origin:', event.origin, 'expected:', backendUrl);
                     return;
                 }
                 
-                console.log('Received OAuth message from popup:', event.data);
+                console.log('✅ Extension: Received OAuth message from backend popup:', event.data);
                 
                 if (event.data.type === 'oauth_success') {
+                    console.log('🎉 Extension: OAuth SUCCESS - processing authentication');
                     messageReceived = true;
                     cleanup();
                     resolve({
@@ -270,6 +286,7 @@ class GmailFollowUpApp {
                         user: event.data.user
                     });
                 } else if (event.data.type === 'oauth_error') {
+                    console.log('❌ Extension: OAuth ERROR received from backend');
                     messageReceived = true;
                     cleanup();
                     reject(new Error(event.data.message || event.data.error || 'Authentication failed'));
@@ -277,30 +294,29 @@ class GmailFollowUpApp {
             };
             
             window.addEventListener('message', messageListener);
+            console.log('🔐 Extension: Message listener added for OAuth communication');
             
-            // Cleanup function to remove listeners and close popup
+            // Cleanup function to remove listeners
             const cleanup = () => {
+                console.log('🧹 Extension: Cleaning up OAuth listeners');
                 window.removeEventListener('message', messageListener);
-                clearTimeout(timeoutId);
-                try {
-                    // Attempt to close popup, but don't rely on it due to COOP restrictions
-                    if (popup && !popup.closed) {
-                        popup.close();
-                    }
-                } catch (error) {
-                    // COOP may block popup.closed access - this is expected and safe to ignore
-                    console.log('Cannot access popup.closed due to COOP policy (this is normal)');
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
                 }
             };
             
-            // Set up timeout - if no postMessage received, treat as cancellation/error
-            const timeoutId = setTimeout(() => {
+            // Set up timeout - ONLY trigger if no postMessage received
+            timeoutId = setTimeout(() => {
                 cleanup();
                 if (!messageReceived) {
-                    console.log('Authentication timeout - no postMessage received from backend');
+                    console.log('⏰ Extension: Authentication timeout - no postMessage received from backend within 2 minutes');
                     reject(new Error('Authentication timed out or was cancelled. Please try again.'));
+                } else {
+                    console.log('✅ Extension: Message was received, timeout cleanup only');
                 }
             }, timeout);
+            
+            console.log('🔐 Extension: OAuth timeout set for', timeout / 1000, 'seconds');
         });
     }
     

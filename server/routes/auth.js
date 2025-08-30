@@ -382,6 +382,7 @@ router.get('/success', (req, res) => {
         </div>
         <script>
             // Send success message to extension sidepanel via window.opener
+            // This is the ONLY reliable method for OAuth popup-to-extension communication
             try {
                 const authData = {
                     type: 'oauth_success',
@@ -389,24 +390,33 @@ router.get('/success', (req, res) => {
                     user: ${user ? `JSON.parse(decodeURIComponent('${user}'))` : 'null'}
                 };
                 
-                console.log('Sending auth success data:', authData);
+                console.log('🔐 Backend: Preparing to send auth success data to extension:', authData);
                 
                 // Send message to opener window (extension sidepanel)
-                if (window.opener) {
+                if (window.opener && !window.opener.closed) {
                     window.opener.postMessage(authData, '*');
-                    console.log('Auth success message sent to opener');
+                    console.log('✅ Backend: Auth success message sent to extension via window.opener.postMessage');
+                    
+                    // Wait longer before closing to ensure message delivery
+                    setTimeout(() => {
+                        console.log('🚪 Backend: Closing OAuth popup after successful message delivery');
+                        window.close();
+                    }, 1500);
                 } else {
-                    console.warn('No opener window found');
+                    console.error('❌ Backend: No opener window found or opener is closed');
+                    // Still close the popup even if we can't send the message
+                    setTimeout(() => {
+                        window.close();
+                    }, 2000);
                 }
                 
             } catch (error) {
-                console.error('Error sending auth success message:', error);
+                console.error('❌ Backend: Error sending auth success message:', error);
+                // Close popup even on error
+                setTimeout(() => {
+                    window.close();
+                }, 2000);
             }
-            
-            // Close popup after a short delay
-            setTimeout(() => {
-                window.close();
-            }, 1000);
         </script>
     </body>
     </html>
@@ -468,22 +478,23 @@ router.get('/error', (req, res) => {
                     message: 'Authentication failed'
                 };
                 
-                console.log('Sending auth error data:', errorData);
+                console.log('🔐 Backend: Sending auth error data to extension:', errorData);
                 
                 // Send message to opener window (extension sidepanel)
-                if (window.opener) {
+                if (window.opener && !window.opener.closed) {
                     window.opener.postMessage(errorData, '*');
-                    console.log('Auth error message sent to opener');
+                    console.log('❌ Backend: Auth error message sent to extension via window.opener.postMessage');
                 } else {
-                    console.warn('No opener window found');
+                    console.error('❌ Backend: No opener window found for error message');
                 }
                 
             } catch (error) {
-                console.error('Error sending auth error message:', error);
+                console.error('❌ Backend: Error sending auth error message:', error);
             }
             
-            // Close popup after a delay
+            // Close popup after delay to ensure message delivery
             setTimeout(() => {
+                console.log('🚪 Backend: Closing OAuth error popup');
                 window.close();
             }, 2000);
         </script>

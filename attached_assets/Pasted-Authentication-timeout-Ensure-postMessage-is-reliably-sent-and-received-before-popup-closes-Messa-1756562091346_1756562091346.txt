@@ -1,0 +1,46 @@
+Authentication timeout — Ensure postMessage is reliably sent and received before popup closes
+
+Message:
+
+While the polling of popup.closed was removed, I now get an "Authentication timed out or was cancelled" error even when authentication succeeds and the popup closes.
+
+Please ensure, with complete accuracy:
+
+Backend /auth/success Must Guarantee Message Delivery:
+
+The popup must call window.opener.postMessage({ type: 'oauth_success', token, user }, '*')
+
+The popup window should only call window.close() after this message is sent and (ideally) after it is confirmed as received (optionally via a handshake/acknowledgement from the opener).
+
+Extension Must Fully Trust postMessage:
+
+The extension’s UI must listen for this message, verify its origin and format, and immediately complete authentication upon its receipt.
+
+The extension must only interpret the process as "timed out" or "cancelled" if the popup closes and no postMessage was received.
+
+No UI/Async Races:
+
+If the postMessage is sent and the opener receives it, the extension must replace any pending or spinner UI with the authenticated state—no more timeouts/errors in these cases.
+
+For further reliability, in /auth/success, consider a short delay after postMessage before closing the window, or implement a confirmation handshake:
+
+js
+window.opener.postMessage(...);
+setTimeout(() => window.close(), 350); // Give time for delivery
+Or: wait for an "ACK" reply from window.opener before closing.
+
+Error Handling:
+
+Only show "timed out or was cancelled" if no postMessage has been received after the popup closes and a conservative timeout elapses.
+
+Testing:
+
+Test on multiple Chrome versions and possibly in Incognito mode—ensure postMessage is always delivered before close, and extension reliably authenticates on first attempt.
+
+Acceptance:
+
+Successful Google OAuth completes with the extension in the authenticated state immediately after popup closes.
+
+Only explicit errors/denials/timeouts show an error message.
+
+Please log both from the popup and extension JS (in console) so we can confirm postMessage emitting and receiving during authentication flow.
