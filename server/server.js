@@ -34,11 +34,12 @@ app.use('/auth', express.static(__dirname + '/public'));
 app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-key',
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true, // Allow sessions to be saved even when uninitialized
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        secure: false, // Allow cookies over HTTP for development
+        httpOnly: false, // Allow access from JavaScript for Chrome extension compatibility
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        sameSite: 'lax' // Allow cross-site requests for OAuth flow
     }
 }));
 

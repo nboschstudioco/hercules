@@ -31,7 +31,21 @@ const SCOPES = [
 router.get('/google/init', (req, res) => {
     try {
         const state = uuidv4(); // CSRF protection
+        
+        // Debug session info
+        console.log('OAuth init - session info:', {
+            sessionId: req.sessionID,
+            hasSession: !!req.session,
+            sessionBefore: req.session
+        });
+        
         req.session.oauthState = state;
+        
+        console.log('OAuth init - state saved:', {
+            generatedState: state,
+            sessionAfter: req.session,
+            sessionId: req.sessionID
+        });
         
         const authUrl = oauth2Client.generateAuthUrl({
             access_type: 'offline',
@@ -70,9 +84,19 @@ router.get('/google/callback', async (req, res) => {
             hasCode: !!code,
             hasState: !!state,
             hasError: !!error,
+            receivedState: state,
             sessionState: req.session.oauthState,
             stateMatch: state === req.session.oauthState,
-            baseUrl: baseUrl
+            sessionId: req.sessionID,
+            hasSession: !!req.session,
+            fullSession: req.session,
+            baseUrl: baseUrl,
+            requestHeaders: {
+                origin: req.get('origin'),
+                host: req.get('host'),
+                userAgent: req.get('user-agent'),
+                referer: req.get('referer')
+            }
         });
         
         // Handle OAuth errors
