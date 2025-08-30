@@ -143,8 +143,8 @@ router.get('/google/callback', async (req, res) => {
         }
         
         // Exchange code for tokens
-        const { tokens } = await oauth2Client.getToken(code);
-        oauth2Client.setCredentials(tokens);
+        const { tokens: oauthTokens } = await oauth2Client.getToken(code);
+        oauth2Client.setCredentials(oauthTokens);
         
         // Get user info
         const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
@@ -167,11 +167,11 @@ router.get('/google/callback', async (req, res) => {
         
         // Store OAuth tokens securely
         const tokenData = {
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token,
-            expiryDate: tokens.expiry_date,
-            scope: tokens.scope,
-            tokenType: tokens.token_type,
+            accessToken: oauthTokens.access_token,
+            refreshToken: oauthTokens.refresh_token,
+            expiryDate: oauthTokens.expiry_date,
+            scope: oauthTokens.scope,
+            tokenType: oauthTokens.token_type,
             userId: userId,
             createdAt: new Date().toISOString()
         };
