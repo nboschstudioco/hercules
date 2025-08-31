@@ -80,6 +80,10 @@ router.get('/google/callback', async (req, res) => {
     // Build proper base URL (available for both success and error paths)
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     
+    // DEBUG: Log callback entry
+    console.log('🔥 OAUTH CALLBACK ROUTE HIT! Query params:', req.query);
+    console.log('🔥 Base URL:', baseUrl);
+    
     try {
         const { code, state, error } = req.query;
         
@@ -105,7 +109,7 @@ router.get('/google/callback', async (req, res) => {
         
         // Handle OAuth errors
         if (error) {
-            console.log('OAuth error from Google:', error);
+            console.log('🚨 OAuth error from Google:', error);
             return res.redirect(`${baseUrl}/auth/error?error=${encodeURIComponent(error)}`);
         }
         
@@ -198,7 +202,9 @@ router.get('/google/callback', async (req, res) => {
             name: updatedUser.name
         }))}`;
         
-        console.log('OAuth success, redirecting to:', successUrl);
+        console.log('🎉 OAuth success, redirecting to:', successUrl);
+        console.log('🎉 Session token created, length:', sessionToken.length);
+        console.log('🎉 User data:', { id: userId, email: updatedUser.email, name: updatedUser.name });
         res.redirect(successUrl);
         
     } catch (error) {

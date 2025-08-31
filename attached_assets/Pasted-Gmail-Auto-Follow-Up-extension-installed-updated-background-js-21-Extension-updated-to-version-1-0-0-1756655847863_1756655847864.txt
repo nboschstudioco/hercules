@@ -1,0 +1,14 @@
+Gmail Auto Follow-Up extension installed/updated
+background.js:21 Extension updated to version 1.0.0
+background.js:41 Background received message: Object
+sidepanel.js:266 🔐 Extension: Starting OAuth flow, waiting for postMessage from backend...
+sidepanel.js:317 Extension [2025-08-31T15:51:36.292Z]: Message listener ATTACHED for OAuth communication
+sidepanel.js:318 Extension [2025-08-31T15:51:36.292Z]: Expecting messages from origin: http://localhost:3000
+sidepanel.js:319 Extension [2025-08-31T15:51:36.292Z]: Popup opened to: https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.send%20https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.modify&include_granted_scopes=true&state=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjE5MmNhMjM1LTU2YzItNGZlNy1iODE1LWQ3ZDQ4NTVjOGI0OCIsInRpbWVzdGFtcCI6MTc1NjY1NTQ5NjI0NiwidHlwZSI6Im9hdXRoX3N0YXRlIiwiaWF0IjoxNzU2NjU1NDk2LCJleHAiOjE3NTY2NTYwOTYsImF1ZCI6Im9hdXRoLXN0YXRlIiwiaXNzIjoiZ21haWwtZm9sbG93dXAtYmFja2VuZCJ9.y6B7e_9niclCDIWEZp8wtXi1PK53qRAbLb_krcEU4rA&prompt=consent&response_type=code&client_id=947297353415-g1s6m4kpiac8be749aqji63hhvqussk0.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fgoogle%2Fcallback
+sidepanel.js:346 Extension [2025-08-31T15:51:36.293Z]: OAuth timeout set for 120 seconds
+sidepanel.js:324 Extension [2025-08-31T15:53:37.245Z]: Cleaning up OAuth listeners
+sidepanel.js:336 Extension [2025-08-31T15:53:37.245Z]: AUTHENTICATION TIMEOUT - no postMessage received from backend within 2 minutes
+sidepanel.js:337 Extension [2025-08-31T15:53:37.245Z]: Expected message from origin: http://localhost:3000
+sidepanel.js:338 Extension [2025-08-31T15:53:37.245Z]: This indicates popup may have closed without reaching /auth/success
+sidepanel.js:233 Sign-in error: Error: Authentication timed out or was cancelled. Please try again.
+    at sidepanel.js:339:28
