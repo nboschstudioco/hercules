@@ -1,0 +1,47 @@
+Checklist for Debugging API Issues in Replit
+1. Confirm Token Registration
+Ensure your backend is receiving the OAuth token and persisting it correctly, e.g., logging token receipt, storing it, and returning it if accessed.
+
+Manually request the token endpoint via browser or cURL to verify the token is served as expected.
+
+2. Validate End-to-End Token Flow
+In your Chrome extension, add logging (console.log) specifically when requesting the token, and log all responses and errors.
+
+Check the browser's DevTools (Console and Network tabs) for failed requests, unexpected error codes, or no responses.
+
+3. Use Replit Debugging Tools
+Import and use the debug module from Replit in your extension code to log data and errors directly to Replit Extension Devtools:
+
+javascript
+import { debug } from '@replit/extensions';
+
+debug.info("Requesting token", { endpoint: "url" });
+debug.error("Token fetch failed", { error: error });
+4. Test API Endpoints with Automated Unit Tests
+Add automated unit tests (Jest for Node.js, or Pytest for Python) to confirm the backend endpoint correctly sends back the token and appropriate status codes.
+
+Example Jest test:
+
+javascript
+describe('Token Endpoint', () => {
+  test('should deliver a valid token', async () => {
+    const res = await fetch('https://your-app.replit.app/api/token');
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.token).toBeDefined();
+  });
+});
+5. Check OAuth Redirect URIs
+Ensure the redirect URIs registered with your OAuth provider match the exact Replit URL where your backend is deployed, including HTTPS and domain.
+
+Verify there are no SSL/TLS, domain, or redirect_uri mismatches. If in production, confirm your redirect is pointing to your production Replit app URL, not the workspace subdomain.
+
+6. Inspect CORS Settings
+Confirm the backend is configured to allow requests from your Chrome extension domain. Incorrect CORS can prevent token delivery regardless of successful registration.
+
+7. Refresh Token Handling
+If your backend issues short-lived tokens, add a refresh endpoint and have the extension request a new token before expiry.
+
+8. Review Timeouts and Error Codes
+Check that your extension and backend set adequate timeout values for requests and handle slow responses or error codes gracefully.
+
