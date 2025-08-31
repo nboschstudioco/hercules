@@ -387,6 +387,11 @@ router.get('/success', (req, res) => {
             const timestamp = new Date().toISOString();
             console.log('Backend [' + timestamp + ']: /auth/success page loaded');
             console.log('Backend [' + timestamp + ']: Current window.location:', window.location.href);
+            
+            // DEBUG: Check window.opener linkage for postMessage
+            console.log("window.opener exists:", !!window.opener);
+            console.log("window.opener.closed:", window.opener && window.opener.closed);
+            
             console.log('Backend [' + timestamp + ']: window.opener exists:', !!window.opener);
             console.log('Backend [' + timestamp + ']: window.opener.closed:', window.opener ? window.opener.closed : 'N/A');
             
@@ -490,6 +495,11 @@ router.get('/error', (req, res) => {
             const timestamp = new Date().toISOString();
             console.log('Backend [' + timestamp + ']: /auth/error page loaded');
             console.log('Backend [' + timestamp + ']: Current window.location:', window.location.href);
+            
+            // DEBUG: Check window.opener linkage for postMessage
+            console.log("window.opener exists:", !!window.opener);
+            console.log("window.opener.closed:", window.opener && window.opener.closed);
+            
             console.log('Backend [' + timestamp + ']: window.opener exists:', !!window.opener);
             console.log('Backend [' + timestamp + ']: window.opener.closed:', window.opener ? window.opener.closed : 'N/A');
             
