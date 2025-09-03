@@ -60,12 +60,36 @@ router.post('/', authenticateToken, async (req, res) => {
         // Validate steps format
         for (let i = 0; i < steps.length; i++) {
             const step = steps[i];
-            if (!step.subject || !step.body || typeof step.delayDays !== 'number') {
+            
+            // Body is required
+            if (!step.body) {
                 return res.status(400).json({
                     success: false,
-                    error: `Step ${i + 1} must have subject, body, and delayDays`
+                    error: `Step ${i + 1} must have a body (email content)`
                 });
             }
+            
+            // Validate delay - support both delayDays and delayUnit/delayValue
+            let hasValidDelay = false;
+            
+            if (typeof step.delayDays === 'number' && step.delayDays >= 0) {
+                hasValidDelay = true;
+            } else if (step.delayUnit && typeof step.delayValue === 'number' && step.delayValue > 0) {
+                // Support hours, days, weeks
+                if (['hours', 'days', 'weeks'].includes(step.delayUnit)) {
+                    hasValidDelay = true;
+                }
+            }
+            
+            if (!hasValidDelay) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Step ${i + 1} must have valid delay (delayDays OR delayUnit + delayValue)`
+                });
+            }
+            
+            // Subject is optional - will inherit from thread for replies
+            // No validation needed for subject as it's optional for reply-based sequences
         }
         
         const sequenceId = await database.createSequence({
@@ -180,12 +204,36 @@ router.put('/:sequenceId', authenticateToken, async (req, res) => {
         if (steps && Array.isArray(steps)) {
             for (let i = 0; i < steps.length; i++) {
                 const step = steps[i];
-                if (!step.subject || !step.body || typeof step.delayDays !== 'number') {
+                
+                // Body is required
+                if (!step.body) {
                     return res.status(400).json({
                         success: false,
-                        error: `Step ${i + 1} must have subject, body, and delayDays`
+                        error: `Step ${i + 1} must have a body (email content)`
                     });
                 }
+                
+                // Validate delay - support both delayDays and delayUnit/delayValue
+                let hasValidDelay = false;
+                
+                if (typeof step.delayDays === 'number' && step.delayDays >= 0) {
+                    hasValidDelay = true;
+                } else if (step.delayUnit && typeof step.delayValue === 'number' && step.delayValue > 0) {
+                    // Support hours, days, weeks
+                    if (['hours', 'days', 'weeks'].includes(step.delayUnit)) {
+                        hasValidDelay = true;
+                    }
+                }
+                
+                if (!hasValidDelay) {
+                    return res.status(400).json({
+                        success: false,
+                        error: `Step ${i + 1} must have valid delay (delayDays OR delayUnit + delayValue)`
+                    });
+                }
+                
+                // Subject is optional - will inherit from thread for replies
+                // No validation needed for subject as it's optional for reply-based sequences
             }
         }
         

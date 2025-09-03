@@ -939,9 +939,10 @@ class GmailFollowUpApp {
                 .filter(text => text.length > 0);
             
             sequence.steps.push({
-                delay,
+                delayValue: delay,
                 delayUnit,
-                variants
+                body: variants.length > 0 ? variants[0] : '', // Use first variant as body
+                variants // Keep variants for potential future use
             });
         });
         
@@ -971,8 +972,8 @@ class GmailFollowUpApp {
         
         for (let i = 0; i < sequence.steps.length; i++) {
             const step = sequence.steps[i];
-            if (step.variants.length === 0) {
-                alert(`Step ${i + 1} must have at least one email template.`);
+            if (!step.body && step.variants.length === 0) {
+                alert(`Step ${i + 1} must have email content.`);
                 return false;
             }
         }
@@ -999,7 +1000,7 @@ class GmailFollowUpApp {
             </div>
             <div class="step-timing">
                 <label>Wait:</label>
-                <input type="number" name="stepDelay" min="1" max="30" value="${stepData?.delay || 1}" required>
+                <input type="number" name="stepDelay" min="1" max="168" value="${stepData?.delayValue || stepData?.delay || 1}" required>
                 <select name="stepDelayUnit">
                     <option value="days" ${stepData?.delayUnit === 'days' ? 'selected' : ''}>business days</option>
                     <option value="hours" ${stepData?.delayUnit === 'hours' ? 'selected' : ''}>hours</option>

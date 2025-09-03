@@ -6,6 +6,33 @@ const router = express.Router();
 const { authenticateToken } = require('./auth');
 
 /**
+ * Convert step delay to hours for consistent scheduling
+ * Supports both legacy delayDays and new delayUnit/delayValue format
+ */
+function getDelayInHours(step) {
+    // Legacy format: delayDays
+    if (typeof step.delayDays === 'number' && step.delayDays >= 0) {
+        return step.delayDays * 24; // Convert days to hours
+    }
+    
+    // New format: delayUnit + delayValue
+    if (step.delayUnit && typeof step.delayValue === 'number' && step.delayValue > 0) {
+        switch (step.delayUnit) {
+            case 'hours':
+                return step.delayValue;
+            case 'days':
+                return step.delayValue * 24;
+            case 'weeks':
+                return step.delayValue * 24 * 7;
+            default:
+                return 24; // Default to 1 day
+        }
+    }
+    
+    return 24; // Default to 1 day if no valid delay found
+}
+
+/**
  * Full sync endpoint - sync Gmail and process pending schedules
  * POST /sync
  */
@@ -196,7 +223,8 @@ async function processPendingSchedules(userId) {
                         // Schedule next step
                         const nextStepData = steps[nextStep];
                         const sendDate = new Date();
-                        sendDate.setDate(sendDate.getDate() + (nextStepData.delayDays || 1));
+                        const delayHours = getDelayInHours(nextStepData);
+                        sendDate.setTime(sendDate.getTime() + (delayHours * 60 * 60 * 1000));
                         nextSendDate = sendDate.toISOString();
                         
                         await database.createSchedule({

@@ -6,6 +6,33 @@ const router = express.Router();
 const { authenticateToken } = require('./auth');
 
 /**
+ * Convert step delay to hours for consistent scheduling
+ * Supports both legacy delayDays and new delayUnit/delayValue format
+ */
+function getDelayInHours(step) {
+    // Legacy format: delayDays
+    if (typeof step.delayDays === 'number' && step.delayDays >= 0) {
+        return step.delayDays * 24; // Convert days to hours
+    }
+    
+    // New format: delayUnit + delayValue
+    if (step.delayUnit && typeof step.delayValue === 'number' && step.delayValue > 0) {
+        switch (step.delayUnit) {
+            case 'hours':
+                return step.delayValue;
+            case 'days':
+                return step.delayValue * 24;
+            case 'weeks':
+                return step.delayValue * 24 * 7;
+            default:
+                return 24; // Default to 1 day
+        }
+    }
+    
+    return 24; // Default to 1 day if no valid delay found
+}
+
+/**
  * Get all enrollments for user
  * GET /enrollments
  */
@@ -122,9 +149,10 @@ router.post('/', authenticateToken, async (req, res) => {
         const firstStep = steps[0];
         let nextSendDate = null;
         
-        if (firstStep && firstStep.delayDays >= 0) {
+        if (firstStep) {
+            const delayHours = getDelayInHours(firstStep);
             const sendDate = new Date();
-            sendDate.setDate(sendDate.getDate() + firstStep.delayDays);
+            sendDate.setTime(sendDate.getTime() + (delayHours * 60 * 60 * 1000));
             nextSendDate = sendDate.toISOString();
         }
         
@@ -468,7 +496,8 @@ router.post('/:enrollmentId/resume', authenticateToken, async (req, res) => {
         if (nextStepIndex < steps.length) {
             const nextStep = steps[nextStepIndex];
             const sendDate = new Date();
-            sendDate.setDate(sendDate.getDate() + (nextStep.delayDays || 1));
+            const delayHours = getDelayInHours(nextStep);
+            sendDate.setTime(sendDate.getTime() + (delayHours * 60 * 60 * 1000));
             nextSendDate = sendDate.toISOString();
             
             // Create new schedule
