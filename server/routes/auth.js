@@ -351,6 +351,27 @@ router.post('/ext_oauth_login', async (req, res) => {
         
         console.log('🔐 Extension OAuth login successful for:', userInfo.email);
         
+        // Trigger background sync to catch up on any overdue follow-ups
+        try {
+            const syncResponse = await fetch(`${req.protocol}://${req.get('host')}/sync/full`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionToken}`
+                }
+            });
+            
+            if (syncResponse.ok) {
+                const syncResult = await syncResponse.json();
+                console.log('🔄 Post-login sync completed:', syncResult.results);
+            } else {
+                console.warn('⚠️ Post-login sync failed, but login successful');
+            }
+        } catch (syncError) {
+            console.warn('⚠️ Post-login sync error:', syncError.message);
+            // Don't fail the login if sync fails
+        }
+        
         res.json({
             success: true,
             token: sessionToken,
