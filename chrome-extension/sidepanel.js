@@ -5,6 +5,24 @@
 
 class GmailFollowUpApp {
     constructor() {
+        // Initialize app state
+        this.isAuthenticated = false;
+        this.selectedEmails = new Set();
+        this.sequences = [];
+        this.enrollments = [];
+        this.currentSequence = null;
+        
+        // Client-side caching for emails
+        this.emailsCache = {
+            data: null,
+            lastFetch: null,
+            isStale: () => {
+                if (!this.emailsCache.lastFetch) return true;
+                const fiveMinutes = 5 * 60 * 1000;
+                return Date.now() - this.emailsCache.lastFetch > fiveMinutes;
+            }
+        };
+        
         this.elements = {
             // App states
             loading: document.getElementById('loading'),
@@ -99,8 +117,14 @@ class GmailFollowUpApp {
         this.elements.tabEnrollments.addEventListener('click', () => this.showTab('enrollments'));
         
         // Emails
-        this.elements.refreshEmailsBtn.addEventListener('click', () => this.loadSentEmails());
-        this.elements.retryEmailsBtn.addEventListener('click', () => this.loadSentEmails());
+        this.elements.refreshEmailsBtn.addEventListener('click', () => {
+            console.log('🔄 User clicked refresh - force loading fresh emails');
+            this.loadSentEmails(true);
+        });
+        this.elements.retryEmailsBtn.addEventListener('click', () => {
+            console.log('🔄 User clicked retry - force loading fresh emails');
+            this.loadSentEmails(true);
+        });
         
         // Enrollment
         this.elements.sequenceSelect.addEventListener('change', () => this.updateEnrollButton());
@@ -147,10 +171,10 @@ class GmailFollowUpApp {
         this.elements[`tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`].classList.add('active');
         this.elements[`${tabName}Tab`].classList.add('active');
         
-        // Load content for the active tab
+        // Load content for the active tab with smart caching
         switch (tabName) {
             case 'emails':
-                this.loadSentEmails();
+                this.loadSentEmailsWithCache();
                 this.updateSequenceDropdown();
                 break;
             case 'sequences':
@@ -313,8 +337,8 @@ class GmailFollowUpApp {
             // Load emails for the currently active tab
             console.log('📧 Checking if emails tab is active:', this.elements.emailsTab.classList.contains('active'));
             if (this.elements.emailsTab.classList.contains('active')) {
-                console.log('📧 Loading sent emails...');
-                await this.loadSentEmails();
+                console.log('📧 Initial load - force refreshing sent emails...');
+                await this.loadSentEmails(true);
             }
             
             console.log('✅ App initialization complete!');
@@ -430,8 +454,43 @@ class GmailFollowUpApp {
     // EMAIL MANAGEMENT
     // ==========================================
 
-    async loadSentEmails() {
+    async loadSentEmailsWithCache() {
         try {
+            console.log('📧 Loading emails with cache check...');
+            
+            // Show cached data immediately if available and not stale
+            if (this.emailsCache.data && !this.emailsCache.isStale()) {
+                console.log('⚡ Using cached emails (fresh)');
+                await this.displayEmails(this.emailsCache.data);
+                this.elements.enrollmentSection.classList.remove('hidden');
+                return;
+            }
+            
+            // If cache is stale or empty, show cached data first (if available) then fetch fresh
+            if (this.emailsCache.data) {
+                console.log('📋 Showing stale cached emails while fetching fresh data...');
+                await this.displayEmails(this.emailsCache.data);
+                this.elements.enrollmentSection.classList.remove('hidden');
+            }
+            
+            // Fetch fresh data
+            await this.loadSentEmails(true);
+            
+        } catch (error) {
+            console.error('Failed to load emails with cache:', error);
+            // Fallback to regular load
+            await this.loadSentEmails(true);
+        }
+    }
+
+    async loadSentEmails(forceRefresh = false) {
+        try {
+            if (!forceRefresh) {
+                console.log('📧 Force refresh disabled, using cache strategy');
+                return this.loadSentEmailsWithCache();
+            }
+            
+            console.log('🔄 Force refreshing emails from API...');
             this.elements.emailsLoading.classList.remove('hidden');
             this.elements.emailsList.innerHTML = '';
             this.elements.emailsEmpty.classList.add('hidden');
@@ -447,6 +506,11 @@ class GmailFollowUpApp {
             // Get emails from backend
             const result = await apiClient.getSentEmails(50);
             const emails = result.emails || [];
+            
+            // Update cache
+            this.emailsCache.data = emails;
+            this.emailsCache.lastFetch = Date.now();
+            console.log(`💾 Cached ${emails.length} emails`);
             
             this.elements.emailsLoading.classList.add('hidden');
             
