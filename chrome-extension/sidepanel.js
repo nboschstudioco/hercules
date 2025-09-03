@@ -611,25 +611,28 @@ class GmailFollowUpApp {
             const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
             
             if (diffDays === 0) {
-                // Same day - show time
-                const hours = date.getHours();
-                const minutes = date.getMinutes();
-                const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                // Same day - show time in 12-hour format with user's timezone
+                const timeStr = date.toLocaleTimeString([], { 
+                    hour: 'numeric', 
+                    minute: '2-digit', 
+                    hour12: true 
+                });
                 return `Today ${timeStr}`;
             } else if (diffDays === 1) {
-                const hours = date.getHours();
-                const minutes = date.getMinutes();
-                const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                // Tomorrow - show time in 12-hour format with user's timezone
+                const timeStr = date.toLocaleTimeString([], { 
+                    hour: 'numeric', 
+                    minute: '2-digit', 
+                    hour12: true 
+                });
                 return `Tomorrow ${timeStr}`;
             } else if (diffDays < 7 && diffDays > 0) {
                 return `in ${diffDays} days`;
-            } else {
-                return date.toLocaleDateString();
-            } else {
+            } else if (diffDays < 0) {
                 // Past dates
                 const pastDays = Math.abs(diffDays);
                 if (pastDays === 0) {
-                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
                 } else if (pastDays === 1) {
                     return 'Yesterday';
                 } else if (pastDays < 7) {
@@ -637,6 +640,8 @@ class GmailFollowUpApp {
                 } else {
                     return date.toLocaleDateString();
                 }
+            } else {
+                return date.toLocaleDateString();
             }
         } catch (error) {
             return dateString;
