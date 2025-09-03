@@ -653,7 +653,7 @@ class GmailFollowUpApp {
         const enrollments = await this.getEnrollments();
         
         this.elements.emailsList.innerHTML = emails.map(email => {
-            const emailEnrollments = enrollments.filter(e => e.emailId === email.id && !['finished'].includes(e.status));
+            const emailEnrollments = enrollments.filter(e => e.emailId === email.id && !['finished', 'completed', 'cancelled'].includes(e.status));
             const isEnrolled = emailEnrollments.length > 0;
             const enrollmentInfo = this.getEnrollmentInfo(emailEnrollments);
             
