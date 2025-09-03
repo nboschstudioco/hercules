@@ -130,6 +130,7 @@ class GmailFollowUpApp {
                 this.elements.signin.classList.remove('hidden');
                 break;
             case 'main':
+            case 'main-app':
                 this.elements.mainApp.classList.remove('hidden');
                 break;
             case 'error':
@@ -206,11 +207,17 @@ class GmailFollowUpApp {
                 // Store session token from backend
                 await apiClient.setSessionToken(authResult.token);
                 
+                console.log('✅ Authentication successful, setting up UI...');
                 this.isAuthenticated = true;
                 this.elements.userEmail.textContent = authResult.user.email;
                 this.updateAuthenticationStatus('ok');
+                
+                console.log('📺 Showing main app UI...');
                 this.showState('main-app');
+                console.log('📝 Switching to emails tab...');
                 this.showTab('emails');
+                
+                console.log('🚀 Initializing app data...');
                 await this.initializeApp();
                 this.resetSignInButton();
             } else {
@@ -295,18 +302,25 @@ class GmailFollowUpApp {
     
     async initializeApp() {
         // Load initial data after successful authentication
+        console.log('🚀 Starting app initialization...');
         try {
+            console.log('🔄 Loading sequences and updating dropdown...');
             await Promise.all([
                 this.updateSequenceDropdown(),
                 this.loadSequences()
             ]);
             
             // Load emails for the currently active tab
+            console.log('📧 Checking if emails tab is active:', this.elements.emailsTab.classList.contains('active'));
             if (this.elements.emailsTab.classList.contains('active')) {
+                console.log('📧 Loading sent emails...');
                 await this.loadSentEmails();
             }
+            
+            console.log('✅ App initialization complete!');
         } catch (error) {
-            console.error('Failed to initialize app:', error);
+            console.error('❌ Failed to initialize app:', error);
+            this.showError(`Failed to load application data: ${error.message}`);
         }
     }
 

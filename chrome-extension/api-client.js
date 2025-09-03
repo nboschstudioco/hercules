@@ -49,6 +49,9 @@ class ApiClient {
     async makeRequest(endpoint, options = {}) {
         const token = await this.getSessionToken();
         
+        console.log(`🔗 API Request: ${options.method || 'GET'} ${endpoint}`);
+        console.log(`🔑 Token available: ${!!token}, Skip auth: ${options.skipAuth}`);
+        
         if (!token && !options.skipAuth) {
             throw new Error('No authentication token found');
         }
@@ -60,6 +63,7 @@ class ApiClient {
 
         if (token && !options.skipAuth) {
             headers['Authorization'] = `Bearer ${token}`;
+            console.log(`🔐 Using auth token: ${token.substring(0, 20)}...`);
         }
 
         const requestOptions = {
@@ -72,17 +76,28 @@ class ApiClient {
             requestOptions.body = JSON.stringify(options.body);
         }
 
+        console.log(`🔍 Sending request to: ${this.baseUrl}${endpoint}`);
         const response = await fetch(`${this.baseUrl}${endpoint}`, requestOptions);
+        console.log(`📝 Response status: ${response.status} ${response.statusText}`);
 
         // Handle authentication errors
         if (response.status === 401 || response.status === 403) {
+            console.error('❌ Authentication failed - clearing token');
             await this.clearSessionToken();
             throw new Error('Authentication expired. Please sign in again.');
         }
 
-        const data = await response.json();
+        let data;
+        try {
+            data = await response.json();
+            console.log(`📊 Response data:`, data);
+        } catch (jsonError) {
+            console.error('❌ Failed to parse JSON response:', jsonError);
+            throw new Error('Invalid response format from server');
+        }
 
         if (!response.ok) {
+            console.error(`❌ Request failed: ${response.status}`, data);
             throw new Error(data.error || `HTTP ${response.status}: Request failed`);
         }
 
