@@ -83,23 +83,34 @@ router.get('/sent', authenticateToken, async (req, res) => {
         const emails = await database.getEmailsByUser(userId, limit);
         
         // Parse JSON fields
-        const processedEmails = emails.map(email => ({
-            id: email.id,
-            gmailId: email.gmail_id,
-            threadId: email.thread_id,
-            subject: email.subject,
-            fromEmail: email.from_email,
-            toEmails: JSON.parse(email.to_emails || '[]'),
-            ccEmails: JSON.parse(email.cc_emails || '[]'),
-            bccEmails: JSON.parse(email.bcc_emails || '[]'),
-            bodyText: email.body_text,
-            bodyHtml: email.body_html,
-            sentAt: email.sent_at,
-            hasReply: email.has_reply,
-            replyCheckedAt: email.reply_checked_at,
-            createdAt: email.created_at,
-            updatedAt: email.updated_at
-        }));
+        const processedEmails = emails.map(email => {
+            const toEmails = JSON.parse(email.to_emails || '[]');
+            const ccEmails = JSON.parse(email.cc_emails || '[]');
+            const bccEmails = JSON.parse(email.bcc_emails || '[]');
+            
+            return {
+                id: email.id,
+                gmailId: email.gmail_id,
+                threadId: email.thread_id,
+                subject: email.subject,
+                fromEmail: email.from_email,
+                // Array format for new API consumers
+                toEmails,
+                ccEmails,
+                bccEmails,
+                // String format for frontend compatibility
+                to: toEmails.join(', '),
+                cc: ccEmails.join(', '),
+                bcc: bccEmails.join(', '),
+                bodyText: email.body_text,
+                bodyHtml: email.body_html,
+                sentAt: email.sent_at,
+                hasReply: email.has_reply,
+                replyCheckedAt: email.reply_checked_at,
+                createdAt: email.created_at,
+                updatedAt: email.updated_at
+            };
+        });
         
         res.json({
             success: true,
@@ -142,16 +153,25 @@ router.get('/sent/:emailId', authenticateToken, async (req, res) => {
             });
         }
         
-        // Parse JSON fields and format response
+        // Parse JSON fields and format response  
+        const toEmails = JSON.parse(email.to_emails || '[]');
+        const ccEmails = JSON.parse(email.cc_emails || '[]');
+        const bccEmails = JSON.parse(email.bcc_emails || '[]');
+        
         const processedEmail = {
             id: email.id,
             gmailId: email.gmail_id,
             threadId: email.thread_id,
             subject: email.subject,
             fromEmail: email.from_email,
-            toEmails: JSON.parse(email.to_emails || '[]'),
-            ccEmails: JSON.parse(email.cc_emails || '[]'),
-            bccEmails: JSON.parse(email.bcc_emails || '[]'),
+            // Array format for new API consumers
+            toEmails,
+            ccEmails,
+            bccEmails,
+            // String format for frontend compatibility
+            to: toEmails.join(', '),
+            cc: ccEmails.join(', '),
+            bcc: bccEmails.join(', '),
             bodyText: email.body_text,
             bodyHtml: email.body_html,
             sentAt: email.sent_at,
@@ -228,10 +248,27 @@ router.post('/sync', authenticateToken, async (req, res) => {
                     const headers = messageDetails.data.payload.headers;
                     const subject = headers.find(h => h.name === 'Subject')?.value || '';
                     const fromEmail = headers.find(h => h.name === 'From')?.value || '';
-                    const toEmails = headers.find(h => h.name === 'To')?.value?.split(',').map(e => e.trim()) || [];
-                    const ccEmails = headers.find(h => h.name === 'Cc')?.value?.split(',').map(e => e.trim()) || [];
-                    const bccEmails = headers.find(h => h.name === 'Bcc')?.value?.split(',').map(e => e.trim()) || [];
+                    
+                    // Extract recipient headers with better parsing
+                    const toHeader = headers.find(h => h.name === 'To')?.value || '';
+                    const ccHeader = headers.find(h => h.name === 'Cc')?.value || '';
+                    const bccHeader = headers.find(h => h.name === 'Bcc')?.value || '';
+                    
+                    const toEmails = toHeader ? toHeader.split(',').map(e => e.trim()).filter(e => e) : [];
+                    const ccEmails = ccHeader ? ccHeader.split(',').map(e => e.trim()).filter(e => e) : [];
+                    const bccEmails = bccHeader ? bccHeader.split(',').map(e => e.trim()).filter(e => e) : [];
                     const sentDate = headers.find(h => h.name === 'Date')?.value || '';
+                    
+                    // Debug logging for first few emails
+                    if (syncedCount < 3) {
+                        console.log(`📧 Email ${message.id}:`, {
+                            subject,
+                            toHeader: toHeader || 'NO TO HEADER',
+                            toEmails: toEmails.length ? toEmails : 'NO TO EMAILS',
+                            ccHeader: ccHeader || 'NO CC HEADER',
+                            totalHeaders: headers.length
+                        });
+                    }
                     
                     // Extract body text (simplified)
                     let bodyText = '';
@@ -265,7 +302,7 @@ router.post('/sync', authenticateToken, async (req, res) => {
                     }
                     
                 } catch (emailError) {
-                    console.error('Error syncing individual email:', emailError);
+                    console.error('Error syncing individual email:', message.id, emailError.message);
                     // Continue with other emails
                 }
             }

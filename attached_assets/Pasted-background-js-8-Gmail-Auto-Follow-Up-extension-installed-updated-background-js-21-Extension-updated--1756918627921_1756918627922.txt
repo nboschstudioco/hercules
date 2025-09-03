@@ -1,0 +1,68 @@
+background.js:8 Gmail Auto Follow-Up extension installed/updated
+background.js:21 Extension updated to version 1.0.0
+background.js:41 Background received message: Object
+api-client.js:52 🔗 API Request: GET /auth/status
+api-client.js:53 🔑 Token available: true, Skip auth: undefined
+api-client.js:66 🔐 Using auth token: eyJhbGciOiJIUzI1NiIs...
+api-client.js:79 🔍 Sending request to: http://localhost:3000/auth/status
+api-client.js:81 📝 Response status: 200 OK
+api-client.js:93 📊 Response data: Object
+sidepanel.js:459 📧 Loading emails with cache check...
+sidepanel.js:493 🔄 Force refreshing emails from API...
+api-client.js:52 🔗 API Request: POST /emails/sync
+api-client.js:53 🔑 Token available: true, Skip auth: undefined
+api-client.js:66 🔐 Using auth token: eyJhbGciOiJIUzI1NiIs...
+api-client.js:79 🔍 Sending request to: http://localhost:3000/emails/sync
+api-client.js:52 🔗 API Request: GET /sequences
+api-client.js:53 🔑 Token available: true, Skip auth: undefined
+api-client.js:66 🔐 Using auth token: eyJhbGciOiJIUzI1NiIs...
+api-client.js:79 🔍 Sending request to: http://localhost:3000/sequences
+api-client.js:81 📝 Response status: 200 OK
+api-client.js:93 📊 Response data: Object
+api-client.js:81 📝 Response status: 200 OK
+api-client.js:93 📊 Response data: Object
+api-client.js:52 🔗 API Request: GET /emails/sent?limit=50
+api-client.js:53 🔑 Token available: true, Skip auth: undefined
+api-client.js:66 🔐 Using auth token: eyJhbGciOiJIUzI1NiIs...
+api-client.js:79 🔍 Sending request to: http://localhost:3000/emails/sent?limit=50
+api-client.js:81 📝 Response status: 200 OK
+api-client.js:93 📊 Response data: Object
+sidepanel.js:513 💾 Cached 50 emails
+api-client.js:52 🔗 API Request: GET /enrollments
+api-client.js:53 🔑 Token available: true, Skip auth: undefined
+api-client.js:66 🔐 Using auth token: eyJhbGciOiJIUzI1NiIs...
+api-client.js:79 🔍 Sending request to: http://localhost:3000/enrollments
+api-client.js:81 📝 Response status: 200 OK
+api-client.js:93 📊 Response data: Object
+api-client.js:52 🔗 API Request: GET /sequences
+api-client.js:53 🔑 Token available: true, Skip auth: undefined
+api-client.js:66 🔐 Using auth token: eyJhbGciOiJIUzI1NiIs...
+api-client.js:79 🔍 Sending request to: http://localhost:3000/sequences
+api-client.js:81 📝 Response status: 200 OK
+api-client.js:93 📊 Response data: {success: true, sequences: Array(1)}
+api-client.js:52 🔗 API Request: GET /enrollments
+api-client.js:53 🔑 Token available: true, Skip auth: undefined
+api-client.js:66 🔐 Using auth token: eyJhbGciOiJIUzI1NiIs...
+api-client.js:79 🔍 Sending request to: http://localhost:3000/enrollments
+api-client.js:81 📝 Response status: 200 OK
+api-client.js:93 📊 Response data: {success: true, enrollments: Array(0), pagination: {…}}
+api-client.js:52 🔗 API Request: GET /sequences
+api-client.js:53 🔑 Token available: true, Skip auth: undefined
+api-client.js:66 🔐 Using auth token: eyJhbGciOiJIUzI1NiIs...
+api-client.js:79 🔍 Sending request to: http://localhost:3000/sequences
+api-client.js:81 📝 Response status: 200 OK
+api-client.js:93 📊 Response data: {success: true, sequences: Array(1)}
+sidepanel.js:459 📧 Loading emails with cache check...
+sidepanel.js:463 ⚡ Using cached emails (fresh)
+api-client.js:52 🔗 API Request: GET /enrollments
+api-client.js:53 🔑 Token available: true, Skip auth: undefined
+api-client.js:66 🔐 Using auth token: eyJhbGciOiJIUzI1NiIs...
+api-client.js:79 🔍 Sending request to: http://localhost:3000/enrollments
+api-client.js:52 🔗 API Request: GET /sequences
+api-client.js:53 🔑 Token available: true, Skip auth: undefined
+api-client.js:66 🔐 Using auth token: eyJhbGciOiJIUzI1NiIs...
+api-client.js:79 🔍 Sending request to: http://localhost:3000/sequences
+api-client.js:81 📝 Response status: 200 OK
+api-client.js:81 📝 Response status: 200 OK
+api-client.js:93 📊 Response data: {success: true, enrollments: Array(0), pagination: {…}}
+api-client.js:93 📊 Response data: {success: true, sequences: Array(1)}
