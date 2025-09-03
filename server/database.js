@@ -81,6 +81,10 @@ class Database {
                 name TEXT NOT NULL,
                 description TEXT,
                 steps TEXT NOT NULL, -- JSON array of steps
+                timezone TEXT DEFAULT 'America/New_York',
+                send_window_days TEXT, -- JSON array of days
+                send_window_start_hour INTEGER DEFAULT 9,
+                send_window_end_hour INTEGER DEFAULT 17,
                 is_active BOOLEAN DEFAULT TRUE,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
@@ -292,12 +296,25 @@ class Database {
         const sequenceId = uuidv4();
         const now = new Date().toISOString();
         
+        // Extract sendWindow data
+        const sendWindow = sequenceData.sendWindow || { days: [], startHour: 9, endHour: 17 };
+        
         await this.run(
-            `INSERT INTO sequences (id, user_id, name, description, steps, is_active, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO sequences (id, user_id, name, description, steps, timezone, send_window_days, send_window_start_hour, send_window_end_hour, is_active, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-                sequenceId, sequenceData.userId, sequenceData.name, sequenceData.description,
-                JSON.stringify(sequenceData.steps), sequenceData.isActive !== false, now, now
+                sequenceId, 
+                sequenceData.userId, 
+                sequenceData.name, 
+                sequenceData.description,
+                JSON.stringify(sequenceData.steps), 
+                sequenceData.timezone || 'America/New_York',
+                JSON.stringify(sendWindow.days || []),
+                sendWindow.startHour || 9,
+                sendWindow.endHour || 17,
+                sequenceData.isActive !== false, 
+                now, 
+                now
             ]
         );
         
@@ -328,6 +345,25 @@ class Database {
         if (updateData.steps !== undefined) {
             fields.push('steps = ?');
             values.push(JSON.stringify(updateData.steps));
+        }
+        if (updateData.timezone !== undefined) {
+            fields.push('timezone = ?');
+            values.push(updateData.timezone);
+        }
+        if (updateData.sendWindow !== undefined) {
+            const sendWindow = updateData.sendWindow;
+            if (sendWindow.days !== undefined) {
+                fields.push('send_window_days = ?');
+                values.push(JSON.stringify(sendWindow.days));
+            }
+            if (sendWindow.startHour !== undefined) {
+                fields.push('send_window_start_hour = ?');
+                values.push(sendWindow.startHour);
+            }
+            if (sendWindow.endHour !== undefined) {
+                fields.push('send_window_end_hour = ?');
+                values.push(sendWindow.endHour);
+            }
         }
         if (updateData.isActive !== undefined) {
             fields.push('is_active = ?');

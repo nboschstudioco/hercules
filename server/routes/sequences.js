@@ -21,6 +21,12 @@ router.get('/', authenticateToken, async (req, res) => {
             name: sequence.name,
             description: sequence.description,
             steps: JSON.parse(sequence.steps || '[]'),
+            timezone: sequence.timezone,
+            sendWindow: {
+                days: JSON.parse(sequence.send_window_days || '[]'),
+                startHour: sequence.send_window_start_hour,
+                endHour: sequence.send_window_end_hour
+            },
             isActive: sequence.is_active,
             createdAt: sequence.created_at,
             updatedAt: sequence.updated_at
@@ -47,7 +53,7 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
     try {
         const { userId } = req.user;
-        const { name, description, steps, isActive } = req.body;
+        const { name, description, steps, timezone, sendWindow, isActive } = req.body;
         
         // Validate required fields
         if (!name || !steps || !Array.isArray(steps)) {
@@ -97,6 +103,8 @@ router.post('/', authenticateToken, async (req, res) => {
             name,
             description: description || '',
             steps,
+            timezone,
+            sendWindow,
             isActive: isActive !== false
         });
         
@@ -110,6 +118,12 @@ router.post('/', authenticateToken, async (req, res) => {
                 name: sequence.name,
                 description: sequence.description,
                 steps: JSON.parse(sequence.steps),
+                timezone: sequence.timezone,
+                sendWindow: {
+                    days: JSON.parse(sequence.send_window_days || '[]'),
+                    startHour: sequence.send_window_start_hour,
+                    endHour: sequence.send_window_end_hour
+                },
                 isActive: sequence.is_active,
                 createdAt: sequence.created_at,
                 updatedAt: sequence.updated_at
@@ -158,6 +172,12 @@ router.get('/:sequenceId', authenticateToken, async (req, res) => {
                 name: sequence.name,
                 description: sequence.description,
                 steps: JSON.parse(sequence.steps),
+                timezone: sequence.timezone,
+                sendWindow: {
+                    days: JSON.parse(sequence.send_window_days || '[]'),
+                    startHour: sequence.send_window_start_hour,
+                    endHour: sequence.send_window_end_hour
+                },
                 isActive: sequence.is_active,
                 createdAt: sequence.created_at,
                 updatedAt: sequence.updated_at
@@ -181,7 +201,7 @@ router.put('/:sequenceId', authenticateToken, async (req, res) => {
     try {
         const { sequenceId } = req.params;
         const { userId } = req.user;
-        const { name, description, steps, isActive } = req.body;
+        const { name, description, steps, timezone, sendWindow, isActive } = req.body;
         
         // Check if sequence exists and belongs to user
         const sequence = await database.getSequenceById(sequenceId);
@@ -242,6 +262,8 @@ router.put('/:sequenceId', authenticateToken, async (req, res) => {
         if (name !== undefined) updateData.name = name;
         if (description !== undefined) updateData.description = description;
         if (steps !== undefined) updateData.steps = steps;
+        if (timezone !== undefined) updateData.timezone = timezone;
+        if (sendWindow !== undefined) updateData.sendWindow = sendWindow;
         if (isActive !== undefined) updateData.isActive = isActive;
         
         await database.updateSequence(sequenceId, updateData);
@@ -256,6 +278,12 @@ router.put('/:sequenceId', authenticateToken, async (req, res) => {
                 name: updatedSequence.name,
                 description: updatedSequence.description,
                 steps: JSON.parse(updatedSequence.steps),
+                timezone: updatedSequence.timezone,
+                sendWindow: {
+                    days: JSON.parse(updatedSequence.send_window_days || '[]'),
+                    startHour: updatedSequence.send_window_start_hour,
+                    endHour: updatedSequence.send_window_end_hour
+                },
                 isActive: updatedSequence.is_active,
                 createdAt: updatedSequence.created_at,
                 updatedAt: updatedSequence.updated_at
