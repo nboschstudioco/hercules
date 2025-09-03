@@ -241,12 +241,48 @@ router.post('/sync', authenticateToken, async (req, res) => {
         
         const gmail = google.gmail({ version: 'v1', auth });
         
-        // Get recent sent emails from Gmail
-        const response = await gmail.users.messages.list({
-            userId: 'me',
-            q: 'in:sent',
-            maxResults: 50
-        });
+        // Get recent sent emails from Gmail with automatic token refresh
+        let response;
+        try {
+            response = await gmail.users.messages.list({
+                userId: 'me',
+                q: 'in:sent',
+                maxResults: 50
+            });
+        } catch (authError) {
+            if (authError.code === 401) {
+                console.log('🔄 Access token expired, refreshing...');
+                
+                // Try to refresh the token
+                try {
+                    const { credentials } = await auth.refreshAccessToken();
+                    console.log('✅ Token refreshed successfully');
+                    
+                    // Update tokens in database
+                    await database.saveTokens(userId, {
+                        access_token: credentials.access_token,
+                        refresh_token: credentials.refresh_token || userTokens.refresh_token,
+                        expiry_date: credentials.expiry_date
+                    });
+                    
+                    // Retry the Gmail API call
+                    response = await gmail.users.messages.list({
+                        userId: 'me',
+                        q: 'in:sent',
+                        maxResults: 50
+                    });
+                } catch (refreshError) {
+                    console.error('❌ Token refresh failed:', refreshError);
+                    return res.status(401).json({
+                        success: false,
+                        error: 'Authentication expired. Please sign out and sign in again.',
+                        requiresReauth: true
+                    });
+                }
+            } else {
+                throw authError;
+            }
+        }
         
         let syncedCount = 0;
         

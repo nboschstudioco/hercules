@@ -83,6 +83,15 @@ class ApiClient {
         // Handle authentication errors
         if (response.status === 401 || response.status === 403) {
             console.error('❌ Authentication failed - clearing token');
+            
+            // Check if backend indicates re-authentication is needed
+            if (data && data.requiresReauth) {
+                await this.clearSessionToken();
+                // Force a page reload to trigger re-authentication
+                window.location.reload();
+                throw new Error('Session expired. Please sign in again.');
+            }
+            
             await this.clearSessionToken();
             throw new Error('Authentication expired. Please sign in again.');
         }
