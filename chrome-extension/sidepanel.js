@@ -525,7 +525,22 @@ class GmailFollowUpApp {
         } catch (error) {
             console.error('Failed to load emails:', error);
             this.elements.emailsLoading.classList.add('hidden');
-            this.elements.emailsErrorMessage.textContent = error.message;
+            
+            // Handle authentication errors with specific guidance
+            if (error.message.includes('sign out and sign in again')) {
+                this.elements.emailsErrorMessage.innerHTML = `
+                    <div style="text-align: left;">
+                        <strong>🔒 Gmail Access Expired</strong><br><br>
+                        Your Gmail session has expired. Please:<br>
+                        1. Click "Sign Out" above<br>
+                        2. Sign in again to restore Gmail access<br>
+                        3. Your follow-up sequences will resume automatically
+                    </div>
+                `;
+            } else {
+                this.elements.emailsErrorMessage.textContent = error.message;
+            }
+            
             this.elements.emailsError.classList.remove('hidden');
             this.elements.enrollmentSection.classList.add('hidden');
         }

@@ -86,10 +86,10 @@ class ApiClient {
             
             // Check if backend indicates re-authentication is needed
             if (data && data.requiresReauth) {
+                console.log('🔄 Backend requires re-authentication - clearing session');
                 await this.clearSessionToken();
-                // Force a page reload to trigger re-authentication
-                window.location.reload();
-                throw new Error('Session expired. Please sign in again.');
+                // Trigger sign-in flow
+                throw new Error('Session expired. Please sign out and sign in again to restore Gmail access.');
             }
             
             await this.clearSessionToken();

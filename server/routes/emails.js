@@ -251,7 +251,17 @@ router.post('/sync', authenticateToken, async (req, res) => {
             });
         } catch (authError) {
             if (authError.code === 401) {
-                console.log('🔄 Access token expired, refreshing...');
+                console.log('🔄 Access token expired, checking refresh token...');
+                
+                // Check if we have a refresh token
+                if (!userTokens.refresh_token) {
+                    console.log('❌ No refresh token available (Chrome Identity API limitation)');
+                    return res.status(401).json({
+                        success: false,
+                        error: 'Session expired. Please sign out and sign in again to restore Gmail access.',
+                        requiresReauth: true
+                    });
+                }
                 
                 // Try to refresh the token
                 try {
