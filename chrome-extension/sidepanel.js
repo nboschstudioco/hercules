@@ -883,15 +883,16 @@ class GmailFollowUpApp {
         this.elements.sequenceName.value = sequence.name;
         this.elements.sequenceTimezone.value = sequence.timezone || 'America/New_York';
         
-        // Set send window days
+        // Set send window days - handle missing sendWindow
+        const sendWindow = sequence.sendWindow || { days: [], startHour: 9, endHour: 17 };
         const dayCheckboxes = this.elements.sequenceForm.querySelectorAll('input[name="sendDays"]');
         dayCheckboxes.forEach(checkbox => {
-            checkbox.checked = sequence.sendWindow.days.includes(checkbox.value);
+            checkbox.checked = sendWindow.days ? sendWindow.days.includes(checkbox.value) : false;
         });
         
         // Set send hours
-        document.getElementById('send-start-hour').value = sequence.sendWindow.startHour;
-        document.getElementById('send-end-hour').value = sequence.sendWindow.endHour;
+        document.getElementById('send-start-hour').value = sendWindow.startHour || 9;
+        document.getElementById('send-end-hour').value = sendWindow.endHour || 17;
         
         // Clear and populate steps
         this.elements.stepsContainer.innerHTML = '';

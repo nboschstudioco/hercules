@@ -368,7 +368,7 @@ class Database {
 
     async getEnrollmentsByUser(userId, limit = 100, offset = 0) {
         return await this.all(
-            `SELECT e.*, s.name as sequence_name, em.subject as email_subject 
+            `SELECT e.*, s.name as sequence_name, em.subject as email_subject, em.to_emails 
              FROM enrollments e 
              JOIN sequences s ON e.sequence_id = s.id 
              JOIN emails em ON e.email_id = em.id 
