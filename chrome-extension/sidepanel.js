@@ -1161,7 +1161,8 @@ class GmailFollowUpApp {
             
             for (const emailId of selectedEmailIds) {
                 // First, ensure the email is saved to the backend
-                const emailData = this.emailsCache.find(email => email.id === emailId);
+                const emailsArray = this.emailsCache.data || [];
+                const emailData = emailsArray.find(email => email.id === emailId || email.gmailId === emailId);
                 if (!emailData) {
                     throw new Error(`Email ${emailId} not found in cache`);
                 }
