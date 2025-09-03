@@ -13,7 +13,7 @@ const { authenticateToken } = require('./auth');
 router.post('/', authenticateToken, async (req, res) => {
     try {
         const { userId } = req.user;
-        const { id, threadId, subject, to, cc, bcc, sentAt } = req.body;
+        const { id, threadId, subject, fromEmail, to, cc, bcc, sentAt } = req.body;
         
         // Validate required fields
         if (!id || !subject) {
@@ -48,6 +48,7 @@ router.post('/', authenticateToken, async (req, res) => {
             gmailId: id,
             threadId: threadId || null,
             subject,
+            fromEmail: fromEmail || 'unknown@gmail.com',
             toEmails: JSON.stringify(toEmails),
             ccEmails: JSON.stringify(ccEmails),
             bccEmails: JSON.stringify(bccEmails),

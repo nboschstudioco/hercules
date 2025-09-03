@@ -1170,13 +1170,19 @@ class GmailFollowUpApp {
                 console.log('📧 Saving email to backend:', {
                     id: emailData.id,
                     subject: emailData.subject,
-                    to: emailData.to
+                    to: emailData.to,
+                    fromEmail: emailData.fromEmail
                 });
+                
+                // Get user's email for the from field if not available
+                const userProfile = await this.getUserProfile();
+                const fromEmail = emailData.fromEmail || userProfile?.email || 'unknown@gmail.com';
                 
                 await apiClient.saveEmail({
                     id: emailData.id,
                     threadId: emailData.threadId,
                     subject: emailData.subject,
+                    fromEmail: fromEmail,
                     to: emailData.to,
                     cc: emailData.cc,
                     bcc: emailData.bcc,
