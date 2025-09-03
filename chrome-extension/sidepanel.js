@@ -564,6 +564,16 @@ class GmailFollowUpApp {
             const to = this.getHeaderValue(headers, 'To') || '';
             const cc = this.getHeaderValue(headers, 'Cc') || '';
             const bcc = this.getHeaderValue(headers, 'Bcc') || '';
+            
+            // Debug: Log first email's headers to understand the structure
+            if (msg.id && headers.length > 0) {
+                console.log('📧 Email headers debug:', {
+                    messageId: msg.id,
+                    subject,
+                    to: to || 'UNDEFINED',
+                    headers: headers.slice(0, 5).map(h => `${h.name}: ${h.value}`)
+                });
+            }
             const originalDate = this.getHeaderValue(headers, 'Date');
             const date = this.formatDate(originalDate);
             
@@ -643,7 +653,7 @@ class GmailFollowUpApp {
                             ${isEnrolled ? `<span class="enrollment-indicator" title="${enrollmentInfo.tooltip}">🔄</span>` : ''}
                         </div>
                         <div class="email-to">
-                            To: ${this.escapeHtml(email.to)}
+                            To: ${email.to ? this.escapeHtml(email.to) : '<em>No recipients found</em>'}
                             ${email.cc ? `<br>CC: ${this.escapeHtml(email.cc)}` : ''}
                         </div>
                         <div class="email-date">${email.date}</div>
@@ -1150,7 +1160,27 @@ class GmailFollowUpApp {
             const enrollments = [];
             
             for (const emailId of selectedEmailIds) {
-                const emailItem = document.querySelector(`[data-email-id="${emailId}"]`);
+                // First, ensure the email is saved to the backend
+                const emailData = this.emailsCache.find(email => email.id === emailId);
+                if (!emailData) {
+                    throw new Error(`Email ${emailId} not found in cache`);
+                }
+                
+                console.log('📧 Saving email to backend:', {
+                    id: emailData.id,
+                    subject: emailData.subject,
+                    to: emailData.to
+                });
+                
+                await apiClient.saveEmail({
+                    id: emailData.id,
+                    threadId: emailData.threadId,
+                    subject: emailData.subject,
+                    to: emailData.to,
+                    cc: emailData.cc,
+                    bcc: emailData.bcc,
+                    sentAt: emailData.originalDate || new Date().toISOString()
+                });
                 
                 const enrollmentData = {
                     emailId: emailId,

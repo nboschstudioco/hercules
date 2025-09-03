@@ -7,6 +7,71 @@ const router = express.Router();
 const { authenticateToken } = require('./auth');
 
 /**
+ * Save/create email record
+ * POST /emails
+ */
+router.post('/', authenticateToken, async (req, res) => {
+    try {
+        const { userId } = req.user;
+        const { id, threadId, subject, to, cc, bcc, sentAt } = req.body;
+        
+        // Validate required fields
+        if (!id || !subject) {
+            return res.status(400).json({
+                success: false,
+                error: 'Email ID and subject are required'
+            });
+        }
+        
+        // Check if email already exists
+        const existingEmail = await database.get(
+            'SELECT id FROM emails WHERE user_id = ? AND gmail_id = ?',
+            [userId, id]
+        );
+        
+        if (existingEmail) {
+            return res.json({
+                success: true,
+                message: 'Email already exists',
+                emailId: id
+            });
+        }
+        
+        // Parse recipients into arrays
+        const toEmails = to ? to.split(',').map(email => email.trim()) : [];
+        const ccEmails = cc ? cc.split(',').map(email => email.trim()) : [];
+        const bccEmails = bcc ? bcc.split(',').map(email => email.trim()) : [];
+        
+        // Create email record
+        const emailData = {
+            userId,
+            gmailId: id,
+            threadId: threadId || null,
+            subject,
+            toEmails: JSON.stringify(toEmails),
+            ccEmails: JSON.stringify(ccEmails),
+            bccEmails: JSON.stringify(bccEmails),
+            sentAt: sentAt || new Date().toISOString()
+        };
+        
+        await database.createEmail(emailData);
+        
+        res.json({
+            success: true,
+            message: 'Email saved successfully',
+            emailId: id
+        });
+        
+    } catch (error) {
+        console.error('Save email error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to save email'
+        });
+    }
+});
+
+/**
  * Get recent sent emails
  * GET /emails/sent
  */

@@ -280,6 +280,13 @@ class ApiClient {
     /**
      * Create new enrollment
      */
+    async saveEmail(emailData) {
+        return await this.makeRequest('/emails', {
+            method: 'POST',
+            body: emailData
+        });
+    }
+
     async createEnrollment(enrollmentData) {
         return await this.makeRequest('/enrollments', {
             method: 'POST',
