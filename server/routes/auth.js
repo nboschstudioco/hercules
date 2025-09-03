@@ -353,7 +353,7 @@ router.post('/ext_oauth_login', async (req, res) => {
         
         // Trigger background sync to catch up on any overdue follow-ups
         try {
-            const syncResponse = await fetch(`${req.protocol}://${req.get('host')}/sync/full`, {
+            const syncResponse = await fetch(`${req.protocol}://${req.get('host')}/sync`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
