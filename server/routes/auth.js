@@ -384,7 +384,18 @@ router.get('/success', (req, res) => {
         <div class="success-container">
             <div class="checkmark">✓</div>
             <h2>Authentication Successful!</h2>
-            <p>You can now close this tab and return to your extension.</p>
+            <p><strong>Authentication completed successfully!</strong></p>
+            <p>You can now <strong>manually close this tab</strong> and return to your extension.</p>
+            <button onclick="window.close()" style="
+                background: #4CAF50;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                margin-top: 10px;
+            ">Close Window</button>
         </div>
         <script>
             // COMPREHENSIVE OAUTH SUCCESS MESSAGE DEBUGGING
@@ -418,30 +429,22 @@ router.get('/success', (req, res) => {
                     window.opener.postMessage(authData, '*');
                     console.log('Backend [' + timestamp + ']: postMessage SENT successfully to extension');
                     
-                    // Wait longer before closing to ensure message delivery
-                    setTimeout(() => {
-                        const closeTimestamp = new Date().toISOString();
-                        console.log('Backend [' + closeTimestamp + ']: Closing OAuth popup after 1.5s delay for message delivery');
-                        window.close();
-                    }, 1500);
+                    // Message sent successfully - user can manually close window
+                    console.log('Backend [' + timestamp + ']: postMessage sent successfully. Window will remain open for manual closing.');
                 } else {
                     console.error('Backend [' + timestamp + ']: Cannot send message - opener not available:', {
                         openerExists: !!window.opener,
                         openerClosed: window.opener ? window.opener.closed : 'N/A'
                     });
-                    // Still close the popup even if we can't send the message
-                    setTimeout(() => {
-                        window.close();
-                    }, 2000);
+                    // Could not send message - user can manually close window
+                    console.log('Backend [' + timestamp + ']: Could not send message. Window will remain open for manual closing.');
                 }
                 
             } catch (error) {
                 console.error('Backend [' + timestamp + ']: Error sending auth success message:', error);
                 console.error('Backend [' + timestamp + ']: Error details:', error.message, error.stack);
-                // Close popup even on error
-                setTimeout(() => {
-                    window.close();
-                }, 2000);
+                // Error occurred - user can manually close window
+                console.log('Backend [' + timestamp + ']: Error occurred. Window will remain open for manual closing.');
             }
         </script>
     </body>
@@ -493,7 +496,17 @@ router.get('/error', (req, res) => {
             <div class="error-mark">✗</div>
             <h2>Authentication Failed</h2>
             <p>There was an error during authentication: ${error || 'Unknown error'}</p>
-            <p>Please close this tab and try again.</p>
+            <p>Please <strong>manually close this tab</strong> and try again in your extension.</p>
+            <button onclick="window.close()" style="
+                background: #f44336;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                margin-top: 10px;
+            ">Close Window</button>
         </div>
         <script>
             // COMPREHENSIVE OAUTH ERROR MESSAGE DEBUGGING
@@ -535,12 +548,8 @@ router.get('/error', (req, res) => {
                 console.error('Backend [' + timestamp + ']: Error details:', error.message, error.stack);
             }
             
-            // Close popup after delay to ensure message delivery
-            setTimeout(() => {
-                const closeTimestamp = new Date().toISOString();
-                console.log('Backend [' + closeTimestamp + ']: Closing OAuth error popup after 2s delay');
-                window.close();
-            }, 2000);
+            // Message sent - user can manually close window
+            console.log('Backend [' + timestamp + ']: Error message sent. Window will remain open for manual closing.');
         </script>
     </body>
     </html>
