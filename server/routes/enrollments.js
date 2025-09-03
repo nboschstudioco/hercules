@@ -46,7 +46,7 @@ router.get('/', authenticateToken, async (req, res) => {
         let enrollments;
         if (status) {
             enrollments = await database.all(
-                `SELECT e.*, s.name as sequence_name, em.subject as email_subject 
+                `SELECT e.*, s.name as sequence_name, em.subject as email_subject, em.to_emails 
                  FROM enrollments e 
                  JOIN sequences s ON e.sequence_id = s.id 
                  JOIN emails em ON e.email_id = em.id 
@@ -59,22 +59,36 @@ router.get('/', authenticateToken, async (req, res) => {
             enrollments = await database.getEnrollmentsByUser(userId, limit, offset);
         }
         
-        // Format response
-        const processedEnrollments = enrollments.map(enrollment => ({
-            id: enrollment.id,
-            sequenceId: enrollment.sequence_id,
-            sequenceName: enrollment.sequence_name,
-            emailId: enrollment.email_id,
-            emailSubject: enrollment.email_subject,
-            status: enrollment.status,
-            replyMode: enrollment.reply_mode,
-            currentStep: enrollment.current_step,
-            nextSendDate: enrollment.next_send_date,
-            enrolledAt: enrollment.enrolled_at,
-            lastSentAt: enrollment.last_sent_at,
-            completedAt: enrollment.completed_at,
-            createdAt: enrollment.created_at,
-            updatedAt: enrollment.updated_at
+        // Format response with sequence details
+        const processedEnrollments = await Promise.all(enrollments.map(async (enrollment) => {
+            // Get the full sequence data including steps
+            const sequence = await database.getSequenceById(enrollment.sequence_id);
+            const steps = sequence ? JSON.parse(sequence.steps || '[]') : [];
+            
+            return {
+                id: enrollment.id,
+                sequenceId: enrollment.sequence_id,
+                sequenceName: enrollment.sequence_name,
+                emailId: enrollment.email_id,
+                emailSubject: enrollment.email_subject,
+                subject: enrollment.email_subject, // Add for frontend compatibility
+                to: enrollment.to_emails ? JSON.parse(enrollment.to_emails).join(', ') : 'No recipients'
+                status: enrollment.status,
+                replyMode: enrollment.reply_mode,
+                currentStep: enrollment.current_step,
+                nextSendDate: enrollment.next_send_date,
+                enrolledAt: enrollment.enrolled_at,
+                lastSentAt: enrollment.last_sent_at,
+                completedAt: enrollment.completed_at,
+                createdAt: enrollment.created_at,
+                updatedAt: enrollment.updated_at,
+                // Include sequence data for frontend
+                sequence: {
+                    id: sequence?.id,
+                    name: sequence?.name || enrollment.sequence_name,
+                    steps: steps
+                }
+            };
         }));
         
         res.json({
