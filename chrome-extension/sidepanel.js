@@ -196,26 +196,14 @@ class GmailFollowUpApp {
             this.elements.signinBtn.disabled = true;
             this.elements.signinBtn.textContent = 'Signing in...';
             
-            // Get OAuth details from backend
-            const authDetails = await apiClient.startAuth();
+            // Use Chrome Identity API for OAuth
+            const accessToken = await this.authenticateWithGoogle();
             
-            // Open OAuth popup
-            const popup = window.open(
-                authDetails.authUrl,
-                'oauth_popup',
-                'width=500,height=600,scrollbars=yes,resizable=yes'
-            );
-            
-            // Check if popup was blocked
-            if (!popup) {
-                throw new Error('Popup blocked. Please allow popups and try again.');
-            }
-            
-            // Wait for auth result from popup
-            const authResult = await this.waitForAuthResult(popup, authDetails);
+            // Send access token to backend for session creation
+            const authResult = await apiClient.loginWithAccessToken(accessToken);
             
             if (authResult.success) {
-                // Store session token and complete authentication
+                // Store session token from backend
                 await apiClient.setSessionToken(authResult.token);
                 
                 this.isAuthenticated = true;
@@ -235,117 +223,75 @@ class GmailFollowUpApp {
             this.resetSignInButton();
         }
     }
-    
-    async waitForAuthResult(popup, authDetails) {
+
+    async authenticateWithGoogle() {
         return new Promise((resolve, reject) => {
-            const timeout = 120000; // 2 minutes
-            let messageReceived = false;
-            let timeoutId;
+            const clientId = '947297353415-g1s6m4kpiac8be749aqji63hhvqussk0.apps.googleusercontent.com';
+            const redirectUri = `https://${chrome.runtime.id}.chromiumapp.org/`;
+            const scopes = [
+                'https://www.googleapis.com/auth/userinfo.email',
+                'https://www.googleapis.com/auth/userinfo.profile',
+                'https://www.googleapis.com/auth/gmail.readonly',
+                'https://www.googleapis.com/auth/gmail.send',
+                'https://www.googleapis.com/auth/gmail.modify'
+            ];
+            const authUrl = 
+                `https://accounts.google.com/o/oauth2/v2/auth?` +
+                `client_id=${encodeURIComponent(clientId)}` +
+                `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+                `&response_type=token` +
+                `&scope=${encodeURIComponent(scopes.join(' '))}` +
+                `&prompt=consent`;
+
+            console.log('🔐 Starting Chrome Identity OAuth flow...');
+            console.log('🔐 Extension ID:', chrome.runtime.id);
+            console.log('🔐 Redirect URI:', redirectUri);
             
-            /**
-             * ROBUST OAUTH AUTHENTICATION FLOW
-             * 
-             * This implementation relies EXCLUSIVELY on postMessage events from the backend success page.
-             * Cross-Origin Opener Policy (COOP) blocks popup.closed access in modern browsers
-             * during OAuth flows, making polling unreliable and causing security errors.
-             * 
-             * Authentication Success Flow:
-             * 1. Backend /auth/success page sends window.opener.postMessage({ type: 'oauth_success', token, user })
-             * 2. Extension receives message, verifies origin, and completes authentication
-             * 3. Backend waits 1.5s before closing popup to ensure message delivery
-             * 
-             * Authentication Failure Flow:
-             * 1. Backend /auth/error page sends window.opener.postMessage({ type: 'oauth_error', error })
-             * 2. Extension receives message and shows appropriate error
-             * 
-             * Timeout/Cancellation Flow:
-             * 1. No postMessage received within timeout period
-             * 2. Extension treats as user cancellation or network error
-             */
-            
-            console.log('🔐 Extension: Starting OAuth flow, waiting for postMessage from backend...');
-            
-            // Listen for ALL messages - comprehensive debugging to trace message flow
-            const messageListener = (event) => {
-                const timestamp = new Date().toISOString();
-                const backendUrl = apiClient.getBackendUrl();
-                
-                // Log EVERY message received for debugging - NO FILTERING
-                console.log('Extension [' + timestamp + ']: ===== MESSAGE EVENT RECEIVED =====');
-                console.log('Extension [' + timestamp + ']: event.origin:', event.origin);
-                console.log('Extension [' + timestamp + ']: expected backend URL:', backendUrl);
-                console.log('Extension [' + timestamp + ']: event.data:', event.data);
-                console.log('Extension [' + timestamp + ']: event.source:', event.source);
-                console.log('Extension [' + timestamp + ']: origin matches exactly:', event.origin === backendUrl);
-                console.log('Extension [' + timestamp + ']: origin matches localhost:3000:', /^https?:\/\/localhost:3000$/.test(event.origin));
-                console.log('Extension [' + timestamp + ']: ================================');
-                
-                // TEMPORARILY BYPASS origin check for debugging - ACCEPT ALL LOCALHOST ORIGINS
-                const isValidOrigin = /^https?:\/\/localhost:3000$/.test(event.origin) || event.origin === backendUrl;
-                
-                if (!isValidOrigin) {
-                    console.log('Extension [' + timestamp + ']: REJECTING message from origin:', event.origin, 'expected pattern: http://localhost:3000');
-                    return;
+            chrome.identity.launchWebAuthFlow(
+                {
+                    url: authUrl,
+                    interactive: true
+                },
+                function (redirectedTo) {
+                    if (chrome.runtime.lastError) {
+                        console.error('OAuth flow error:', chrome.runtime.lastError);
+                        reject(new Error(chrome.runtime.lastError.message));
+                        return;
+                    }
+                    
+                    if (!redirectedTo) {
+                        reject(new Error('OAuth flow cancelled by user'));
+                        return;
+                    }
+                    
+                    console.log('🔐 OAuth redirected to:', redirectedTo);
+                    
+                    try {
+                        // Parse access token from URL fragment
+                        const params = new URL(redirectedTo).hash.substr(1).split('&')
+                            .reduce((acc, v) => {
+                                const [k, val] = v.split('=');
+                                acc[k] = decodeURIComponent(val || '');
+                                return acc;
+                            }, {});
+                        
+                        if (params.access_token) {
+                            console.log('🔐 Access token received successfully, length:', params.access_token.length);
+                            resolve(params.access_token);
+                        } else {
+                            console.error('🔐 No access token in response:', params);
+                            reject(new Error('No access token received from Google'));
+                        }
+                    } catch (error) {
+                        console.error('🔐 Error parsing OAuth response:', error);
+                        reject(error);
+                    }
                 }
-                
-                console.log('Extension [' + timestamp + ']: ACCEPTING message from valid localhost origin');
-                
-                if (event.data && event.data.type === 'oauth_success') {
-                    console.log('Extension [' + timestamp + ']: ★★★ OAuth SUCCESS MESSAGE RECEIVED ★★★');
-                    console.log('Extension [' + timestamp + ']: Token received:', event.data.token?.substring(0, 20) + '...');
-                    console.log('Extension [' + timestamp + ']: User email:', event.data.user?.email);
-                    messageReceived = true;
-                    cleanup();
-                    resolve({
-                        success: true,
-                        token: event.data.token,
-                        user: event.data.user
-                    });
-                } else if (event.data && event.data.type === 'oauth_error') {
-                    console.log('Extension [' + timestamp + ']: ★★★ OAuth ERROR MESSAGE RECEIVED ★★★');
-                    console.log('Extension [' + timestamp + ']: Error:', event.data.error);
-                    messageReceived = true;
-                    cleanup();
-                    reject(new Error(event.data.message || event.data.error || 'Authentication failed'));
-                } else {
-                    console.log('Extension [' + timestamp + ']: Message received but unknown type or format:', event.data);
-                }
-            };
-            
-            window.addEventListener('message', messageListener);
-            const timestamp = new Date().toISOString();
-            console.log('Extension [' + timestamp + ']: Message listener ATTACHED for OAuth communication');
-            console.log('Extension [' + timestamp + ']: Expecting messages from origin:', apiClient.getBackendUrl());
-            console.log('Extension [' + timestamp + ']: Popup opened to:', authDetails.authUrl);
-            
-            // Cleanup function to remove listeners
-            const cleanup = () => {
-                const timestamp = new Date().toISOString();
-                console.log('Extension [' + timestamp + ']: Cleaning up OAuth listeners');
-                window.removeEventListener('message', messageListener);
-                if (timeoutId) {
-                    clearTimeout(timeoutId);
-                }
-            };
-            
-            // Set up timeout - ONLY trigger if no postMessage received
-            timeoutId = setTimeout(() => {
-                const timestamp = new Date().toISOString();
-                cleanup();
-                if (!messageReceived) {
-                    console.log('Extension [' + timestamp + ']: AUTHENTICATION TIMEOUT - no postMessage received from backend within 2 minutes');
-                    console.log('Extension [' + timestamp + ']: Expected message from origin:', apiClient.getBackendUrl());
-                    console.log('Extension [' + timestamp + ']: This indicates popup may have closed without reaching /auth/success');
-                    reject(new Error('Authentication timed out or was cancelled. Please try again.'));
-                } else {
-                    console.log('Extension [' + timestamp + ']: Message was received, timeout cleanup only');
-                }
-            }, timeout);
-            
-            const timestamp2 = new Date().toISOString();
-            console.log('Extension [' + timestamp2 + ']: OAuth timeout set for', timeout / 1000, 'seconds');
+            );
         });
     }
+    
+    // Legacy waitForAuthResult method removed - now using Chrome Identity API
     
     async initializeApp() {
         // Load initial data after successful authentication

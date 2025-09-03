@@ -3,8 +3,18 @@
   "name": "bosch studio hercules",
   "version": "1.0.0",
   "description": "Automate Gmail follow-up sequences with backend OAuth authentication",
-  "permissions": ["storage", "activeTab", "sidePanel", "alarms"],
+  "permissions": ["identity", "storage", "activeTab", "sidePanel", "alarms"],
   "host_permissions": ["http://localhost:3000/*", "https://localhost:3000/*"],
+  "oauth2": {
+    "client_id": "947297353415-g1s6m4kpiac8be749aqji63hhvqussk0.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile",
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/gmail.send",
+      "https://www.googleapis.com/auth/gmail.modify"
+    ]
+  },
   "background": {
     "service_worker": "background.js",
     "type": "module"

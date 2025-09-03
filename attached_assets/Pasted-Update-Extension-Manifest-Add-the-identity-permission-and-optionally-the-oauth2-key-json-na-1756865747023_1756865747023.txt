@@ -1,0 +1,96 @@
+Update Extension Manifest
+Add the identity permission and (optionally) the oauth2 key:
+
+json
+{
+  "name": "Gmail Auto Follow-Up",
+  "version": "1.0.0",
+  "manifest_version": 3,
+  "permissions": ["identity"],
+  "oauth2": {
+    "client_id": "YOUR_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile",
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/gmail.send",
+      "https://www.googleapis.com/auth/gmail.modify"
+    ]
+  },
+  ...
+}
+Ensure your Google OAuth client is set up as a "Web application" and includes your extension's redirect URI of the form:
+
+text
+https://<YOUR_EXTENSION_ID>.chromiumapp.org/
+(Replace <YOUR_EXTENSION_ID> with your actual Chrome extension ID; see the Extensions page in Developer Mode for this value.)
+
+2. Change Your Sign-In Flow to Use chrome.identity.launchWebAuthFlow
+Replace your popup logic with:
+
+javascript
+function authenticateWithGoogle() {
+  const clientId = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+  const redirectUri = `https://${chrome.runtime.id}.chromiumapp.org/`;
+  const scopes = [
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.modify"
+  ];
+  const authUrl =
+    `https://accounts.google.com/o/oauth2/v2/auth?` +
+    `client_id=${encodeURIComponent(clientId)}` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+    `&response_type=token` +
+    `&scope=${encodeURIComponent(scopes.join(' '))}` +
+    `&prompt=consent`;
+
+  chrome.identity.launchWebAuthFlow(
+    {
+      url: authUrl,
+      interactive: true
+    },
+    function (redirectedTo) {
+      if (chrome.runtime.lastError) {
+        // Handle error
+        console.error('OAuth flow error', chrome.runtime.lastError);
+        return;
+      }
+      // ** redirectedTo will contain the access_token as a URL fragment **
+      const params = new URL(redirectedTo).hash.substr(1).split('&')
+        .reduce((acc, v) => {
+          const [k, val] = v.split('=');
+          acc[k] = val;
+          return acc;
+        }, {});
+      // Now send the params['access_token'] and/or params['id_token'] to your backend as needed
+      // e.g., await fetch('https://your-backend.repl.co/ext_oauth_login', {...})
+    }
+  );
+}
+Remove all code using window.open for auth flow and postMessage handling for the access token.
+
+3. Register and Use the Extension Redirect URI in Google Cloud
+Log into Google Cloud Console > API & Services > Credentials.
+
+In your OAuth2 client config, add:
+
+text
+https://<YOUR_EXTENSION_ID>.chromiumapp.org/
+Remove all localhost and dynamic/non-extension URIs for extension-specific flows.
+
+4. Adjust Your Replit Backend API
+Add a new endpoint (e.g., POST /ext_oauth_login) that accepts access tokens from the extension, verifies them (using Google’s tokeninfo endpoint or by validating the ID token JWT), and issues a session for your backend/app.
+
+Example endpoint:
+
+javascript
+router.post('/ext_oauth_login', async (req, res) => {
+  const { accessToken } = req.body;
+  // Optionally verify with https://oauth2.googleapis.com/tokeninfo?access_token=...
+  // Or verify id_token if received
+  // On success, create/find user and return your app session token
+});
+Update the extension login to fetch this endpoint after receiving an access token.

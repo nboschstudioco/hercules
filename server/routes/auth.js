@@ -2,6 +2,7 @@ const express = require('express');
 const { google } = require('googleapis');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const fetch = require('node-fetch');
 const database = require('../database');
 const router = express.Router();
 
@@ -254,6 +255,117 @@ router.post('/refresh', authenticateToken, async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to refresh token'
+        });
+    }
+});
+
+/**
+ * Handle extension OAuth login with access token from Chrome Identity API
+ */
+router.post('/ext_oauth_login', async (req, res) => {
+    try {
+        const { accessToken } = req.body;
+        
+        if (!accessToken) {
+            return res.status(400).json({
+                success: false,
+                error: 'Access token is required'
+            });
+        }
+        
+        console.log('🔐 Extension OAuth login - verifying access token...');
+        
+        // Verify access token with Google
+        const tokenInfoResponse = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${accessToken}`);
+        
+        if (!tokenInfoResponse.ok) {
+            console.error('Token verification failed:', tokenInfoResponse.status);
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid access token'
+            });
+        }
+        
+        const tokenInfo = await tokenInfoResponse.json();
+        console.log('🔐 Token verified for user:', tokenInfo.email);
+        
+        // Get user info using the access token
+        const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+        
+        if (!userInfoResponse.ok) {
+            console.error('Failed to get user info:', userInfoResponse.status);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to get user information'
+            });
+        }
+        
+        const userInfo = await userInfoResponse.json();
+        console.log('🔐 User info retrieved:', { email: userInfo.email, name: userInfo.name });
+        
+        // Create or update user record
+        let user = await database.getUserByEmail(userInfo.email);
+        let userId;
+        
+        if (user) {
+            // Update existing user's last login
+            userId = user.id;
+            await database.updateUserLastLogin(userId);
+        } else {
+            // Create new user
+            userId = await database.createUser({
+                email: userInfo.email,
+                name: userInfo.name,
+                picture: userInfo.picture
+            });
+        }
+        
+        // Store the access token (note: no refresh token in implicit flow)
+        await database.saveTokens(userId, {
+            accessToken: accessToken,
+            refreshToken: null, // Chrome Identity API uses implicit flow
+            expiryDate: Date.now() + (3600 * 1000) // 1 hour from now
+        });
+        
+        // Generate JWT session token for extension
+        const sessionToken = jwt.sign(
+            { 
+                userId: userId,
+                email: userInfo.email,
+                type: 'session'
+            },
+            process.env.JWT_SECRET || 'fallback-secret',
+            { 
+                expiresIn: '7d',
+                issuer: 'gmail-followup-backend',
+                audience: 'gmail-followup-extension'
+            }
+        );
+        
+        // Get updated user data
+        const updatedUser = await database.getUserById(userId);
+        
+        console.log('🔐 Extension OAuth login successful for:', userInfo.email);
+        
+        res.json({
+            success: true,
+            token: sessionToken,
+            user: {
+                id: userId,
+                email: updatedUser.email,
+                name: updatedUser.name
+            }
+        });
+        
+    } catch (error) {
+        console.error('Extension OAuth login error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to process extension authentication'
         });
     }
 });

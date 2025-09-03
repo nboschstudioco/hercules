@@ -94,10 +94,21 @@ class ApiClient {
     // ==========================================
 
     /**
-     * Start OAuth flow
+     * Start OAuth flow (legacy - kept for compatibility)
      */
     async startAuth() {
         return await this.makeRequest('/auth/google/init', { skipAuth: true });
+    }
+
+    /**
+     * Login with Google access token from Chrome Identity API
+     */
+    async loginWithAccessToken(accessToken) {
+        return await this.makeRequest('/auth/ext_oauth_login', {
+            method: 'POST',
+            body: { accessToken },
+            skipAuth: true
+        });
     }
 
     /**
