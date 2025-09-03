@@ -85,9 +85,23 @@ router.get('/sent', authenticateToken, async (req, res) => {
         
         // Parse JSON fields
         const processedEmails = emails.map(email => {
-            const toEmails = JSON.parse(email.to_emails || '[]');
-            const ccEmails = JSON.parse(email.cc_emails || '[]');
-            const bccEmails = JSON.parse(email.bcc_emails || '[]');
+            let toEmails, ccEmails, bccEmails;
+            
+            try {
+                toEmails = JSON.parse(email.to_emails || '[]');
+                ccEmails = JSON.parse(email.cc_emails || '[]');
+                bccEmails = JSON.parse(email.bcc_emails || '[]');
+            } catch (parseError) {
+                console.error('Error parsing email recipients for email', email.id, parseError);
+                toEmails = [];
+                ccEmails = [];
+                bccEmails = [];
+            }
+            
+            // Ensure arrays are valid before calling join
+            const toEmailsArray = Array.isArray(toEmails) ? toEmails : [];
+            const ccEmailsArray = Array.isArray(ccEmails) ? ccEmails : [];
+            const bccEmailsArray = Array.isArray(bccEmails) ? bccEmails : [];
             
             return {
                 id: email.id,
@@ -96,13 +110,13 @@ router.get('/sent', authenticateToken, async (req, res) => {
                 subject: email.subject,
                 fromEmail: email.from_email,
                 // Array format for new API consumers
-                toEmails,
-                ccEmails,
-                bccEmails,
+                toEmails: toEmailsArray,
+                ccEmails: ccEmailsArray,
+                bccEmails: bccEmailsArray,
                 // String format for frontend compatibility
-                to: toEmails.join(', '),
-                cc: ccEmails.join(', '),
-                bcc: bccEmails.join(', '),
+                to: toEmailsArray.join(', '),
+                cc: ccEmailsArray.join(', '),
+                bcc: bccEmailsArray.join(', '),
                 bodyText: email.body_text,
                 bodyHtml: email.body_html,
                 sentAt: email.sent_at,
