@@ -158,7 +158,7 @@ router.post('/', authenticateToken, async (req, res) => {
             });
         }
         
-        // Calculate next send date (first step)
+        // Calculate next send date (first step) with randomization
         const steps = JSON.parse(sequence.steps);
         const firstStep = steps[0];
         let nextSendDate = null;
@@ -167,6 +167,13 @@ router.post('/', authenticateToken, async (req, res) => {
             const delayHours = getDelayInHours(firstStep);
             const sendDate = new Date();
             sendDate.setTime(sendDate.getTime() + (delayHours * 60 * 60 * 1000));
+            
+            // Add randomization: vary send time by ±5-15 minutes to simulate human behavior
+            const randomMinutes = Math.floor(Math.random() * 21) - 10; // -10 to +10 minutes
+            const additionalRandomMinutes = Math.floor(Math.random() * 11); // 0 to +10 more minutes
+            const totalRandomMinutes = randomMinutes + additionalRandomMinutes; // -10 to +20 minutes
+            
+            sendDate.setTime(sendDate.getTime() + (totalRandomMinutes * 60 * 1000));
             nextSendDate = sendDate.toISOString();
         }
         
@@ -512,6 +519,13 @@ router.post('/:enrollmentId/resume', authenticateToken, async (req, res) => {
             const sendDate = new Date();
             const delayHours = getDelayInHours(nextStep);
             sendDate.setTime(sendDate.getTime() + (delayHours * 60 * 60 * 1000));
+            
+            // Add randomization for resume functionality as well
+            const randomMinutes = Math.floor(Math.random() * 21) - 10; // -10 to +10 minutes
+            const additionalRandomMinutes = Math.floor(Math.random() * 11); // 0 to +10 more minutes
+            const totalRandomMinutes = randomMinutes + additionalRandomMinutes; // -10 to +20 minutes
+            
+            sendDate.setTime(sendDate.getTime() + (totalRandomMinutes * 60 * 1000));
             nextSendDate = sendDate.toISOString();
             
             // Create new schedule

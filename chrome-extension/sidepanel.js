@@ -603,20 +603,28 @@ class GmailFollowUpApp {
             if (!dateString) return '';
             const date = new Date(dateString);
             const now = new Date();
-            const diffTime = date - now; // Future dates should be positive
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             
-            if (diffTime > 0) {
-                // Future dates
-                if (diffDays === 0) {
-                    return 'Today';
-                } else if (diffDays === 1) {
-                    return 'Tomorrow';
-                } else if (diffDays < 7) {
-                    return `in ${diffDays} days`;
-                } else {
-                    return date.toLocaleDateString();
-                }
+            // Compare dates properly by comparing day, month, year
+            const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const diffTime = dateOnly - nowOnly;
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) {
+                // Same day - show time
+                const hours = date.getHours();
+                const minutes = date.getMinutes();
+                const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                return `Today ${timeStr}`;
+            } else if (diffDays === 1) {
+                const hours = date.getHours();
+                const minutes = date.getMinutes();
+                const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                return `Tomorrow ${timeStr}`;
+            } else if (diffDays < 7 && diffDays > 0) {
+                return `in ${diffDays} days`;
+            } else {
+                return date.toLocaleDateString();
             } else {
                 // Past dates
                 const pastDays = Math.abs(diffDays);
