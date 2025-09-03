@@ -72,7 +72,7 @@ router.get('/', authenticateToken, async (req, res) => {
                 emailId: enrollment.email_id,
                 emailSubject: enrollment.email_subject,
                 subject: enrollment.email_subject, // Add for frontend compatibility
-                to: enrollment.to_emails ? JSON.parse(enrollment.to_emails).join(', ') : 'No recipients'
+                to: enrollment.to_emails ? JSON.parse(enrollment.to_emails).join(', ') : 'No recipients',
                 status: enrollment.status,
                 replyMode: enrollment.reply_mode,
                 currentStep: enrollment.current_step,
